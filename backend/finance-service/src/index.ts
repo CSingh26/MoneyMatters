@@ -4,6 +4,7 @@ import cors from "cors";
 import { config } from "./utils/config";
 import { createAuthMiddleware } from "../../shared/middleware/auth";
 import incomeRoutes from "./routes/income.routes";
+import expenditureRoutes from "./routes/expenditure.routes";
 
 const app = express();
 
@@ -17,6 +18,7 @@ const authenticate = createAuthMiddleware(config.jwtSecret);
 
 // Routes
 app.use("/finance/income", authenticate, incomeRoutes);
+app.use("/finance/expenditure", authenticate, expenditureRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {
