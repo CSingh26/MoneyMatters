@@ -3,7 +3,7 @@ import {
   ORCHESTRATOR_SYSTEM,
   buildOrchestratorUserMessage,
 } from '../prompts/scenarioSimulator.prompt';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export interface OrchestratorPlan {
   agentsNeeded: string[];

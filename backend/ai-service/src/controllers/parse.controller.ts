@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { sendSuccess, sendError } from '../../shared/utils/response';
+import { sendSuccess, sendError } from '../../../shared/utils/response';
 import { parseRequestSchema } from '../validators/ai.validator';
 import { parsePolicy } from '../agents/policyParser.agent';
 import { createParseJob, updateParseJob } from '../models/scenario.model';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../../shared/utils/logger';
 import axios from 'axios';
 
 const POLICY_SERVICE_URL = () => process.env.POLICY_SERVICE_URL ?? 'http://localhost:3003';
@@ -58,7 +58,7 @@ export async function parseHandler(req: Request, res: Response, next: NextFuncti
 export async function parseStatusHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const { findParseJobByPolicy } = await import('../models/scenario.model');
-    const job = await findParseJobByPolicy(req.params.policyId);
+    const job = await findParseJobByPolicy(req.params.policyId as string);
     if (!job) return sendError(res, 'Parse job not found', 404);
     sendSuccess(res, job);
   } catch (err: any) {

@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../../shared/types';
-import { sendSuccess, sendError } from '../../shared/utils/response';
+import { AuthenticatedRequest } from '../../../shared/types';
+import { sendSuccess, sendError } from '../../../shared/utils/response';
 import { scenarioRequestSchema } from '../validators/ai.validator';
 import { simulateScenario } from '../agents/scenarioSimulator.agent';
 import { createScenario, findScenariosByUser, findScenarioById } from '../models/scenario.model';
@@ -45,7 +45,7 @@ export async function scenariosListHandler(req: AuthenticatedRequest, res: Respo
 
 export async function scenarioByIdHandler(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const scenario = await findScenarioById(req.params.id);
+    const scenario = await findScenarioById(req.params.id as string);
     if (!scenario) return sendError(res, 'Scenario not found', 404);
     if (scenario.userId !== req.user!.userId) return sendError(res, 'Forbidden', 403);
     sendSuccess(res, scenario);

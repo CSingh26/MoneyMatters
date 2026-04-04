@@ -1,6 +1,6 @@
 import { chatJson } from '../services/anthropic.service';
 import { WATCHDOG_SYSTEM, buildWatchdogUserMessage } from '../prompts/watchdog.prompt';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export interface WatchdogAnalysis {
   healthScore: number;

@@ -39,6 +39,22 @@ model AiParseJob {
   @@index([policyId])
 }
 
-enum ScenarioType { income_shock  medical  policy_change  property }
-enum Confidence   { high  medium  low }
-enum JobStatus    { queued  processing  done  failed }
+enum ScenarioType {
+  income_shock
+  medical
+  policy_change
+  property
+}
+
+enum Confidence {
+  high
+  medium
+  low
+}
+
+enum JobStatus {
+  queued
+  processing
+  done
+  failed
+}

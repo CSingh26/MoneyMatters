@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../../shared/types';
-import { sendSuccess, sendError } from '../../shared/utils/response';
+import { AuthenticatedRequest } from '../../../shared/types';
+import { sendSuccess, sendError } from '../../../shared/utils/response';
 import { watchdogRequestSchema } from '../validators/ai.validator';
 import { analyzeFinances } from '../agents/watchdog.agent';
 

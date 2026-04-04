@@ -3,7 +3,7 @@ import {
   SCENARIO_SIMULATOR_SYSTEM,
   buildScenarioUserMessage,
 } from '../prompts/scenarioSimulator.prompt';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 export interface ScenarioResult {
   scenarioType: string;
