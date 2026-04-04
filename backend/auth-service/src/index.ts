@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import { config } from "./utils/config";
@@ -17,6 +17,17 @@ app.use("/auth", authRoutes);
 // Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "auth-service" });
+});
+
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// Global error handler
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("Unhandled error:", err.message);
+  res.status(500).json({ error: "Internal server error" });
 });
 
 app.listen(config.port, () => {

@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
-import { registerSchema, loginSchema } from "../utils/validation";
-import { createUser, emailExists, findUserByEmail, toPublicUser } from "../models/user.model";
+import { registerSchema, loginSchema, refreshSchema } from "../utils/validation";
+import { createUser, emailExists, findUserByEmail, findUserById, toPublicUser } from "../models/user.model";
 import { config } from "../utils/config";
 import { User } from "../../../shared/types/index";
 import { formatZodErrors } from "../utils/errors";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
+import { generateAccessToken, generateRefreshToken, verifyToken } from "../utils/jwt";
 
 export async function register(req: Request, res: Response): Promise<void> {
   try {
@@ -88,6 +88,66 @@ export async function login(req: Request, res: Response): Promise<void> {
     });
   } catch (error) {
     console.error("Login error:", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function refresh(req: Request, res: Response): Promise<void> {
+  try {
+    const parsed = refreshSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({ errors: formatZodErrors(parsed.error) });
+      return;
+    }
+
+    const { refreshToken } = parsed.data;
+
+    let payload;
+    try {
+      payload = verifyToken(refreshToken);
+    } catch {
+      res.status(401).json({ error: "Invalid or expired refresh token" });
+      return;
+    }
+
+    if (payload.type !== "refresh") {
+      res.status(401).json({ error: "Invalid token type — expected refresh token" });
+      return;
+    }
+
+    const user = findUserById(payload.sub);
+    if (!user) {
+      res.status(401).json({ error: "User not found" });
+      return;
+    }
+
+    const accessToken = generateAccessToken(user.id, user.email);
+
+    res.status(200).json({ accessToken });
+  } catch (error) {
+    console.error("Refresh error:", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function me(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user?.sub;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const user = findUserById(userId);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.status(200).json(toPublicUser(user));
+  } catch (error) {
+    console.error("Me error:", error instanceof Error ? error.message : error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
