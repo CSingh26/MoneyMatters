@@ -6,6 +6,7 @@ import AuthScreen from './src/screens/AuthScreen';
 import HubScreen from './src/screens/HubScreen';
 import TrackerScreen from './src/screens/TrackerScreen';
 import PolicyScreen from './src/screens/PolicyScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -37,6 +38,9 @@ function AppContent() {
             </Stack.Screen>
             <Stack.Screen name="Policy">
               {(props) => <PolicyScreen {...props} user={user} />}
+            </Stack.Screen>
+            <Stack.Screen name="Profile">
+              {(props) => <ProfileScreen {...props} user={user} />}
             </Stack.Screen>
           </>
         )}

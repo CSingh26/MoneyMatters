@@ -23,12 +23,12 @@ export default function HubScreen({ user, onLogout, navigation }) {
             <TouchableOpacity onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: isDark ? colors.gray50 : colors.gray100 }]}>
               {isDark ? <Sun size={18} color="#FDCB6E" /> : <Moon size={18} color="#6C5CE7" />}
             </TouchableOpacity>
-            <View style={[styles.userBadge, { backgroundColor: colors.cardBg, borderColor: colors.gray200 }]}>
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={[styles.userBadge, { backgroundColor: colors.cardBg, borderColor: colors.gray200 }]}>
               <View style={[styles.avatar, { backgroundColor: isDark ? colors.primary300 : '#6C5CE7' }]}>
                 <Text style={styles.avatarText}>{user?.name?.[0]}</Text>
               </View>
               <Text style={[styles.userName, { color: colors.gray700 }]}>{user?.name}</Text>
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
               <LogOut size={16} color={isDark ? colors.primary500 : '#6C5CE7'} />
               <Text style={[styles.logoutText, { color: isDark ? colors.primary500 : '#6C5CE7' }]}>Logout</Text>

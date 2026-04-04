@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff, Shield } from 'lucide-react-native';
+import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff, Shield, Calendar, Users } from 'lucide-react-native';
 import { Colors, FontSizes, FontWeights, Spacing, Radii, Shadows, InputStyle } from '../theme';
 import { useTheme } from '../ThemeContext';
 import { userData } from '../data/mockData';
@@ -17,10 +17,14 @@ export default function AuthScreen({ onLogin }) {
     name: userData.name,
     email: userData.email,
     password: userData.password,
+    age: '',
+    gender: '',
   });
 
+  const genderOptions = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
+
   const handleSubmit = () => {
-    onLogin({ name: formData.name, email: formData.email });
+    onLogin({ name: formData.name, email: formData.email, age: formData.age, gender: formData.gender });
   };
 
   return (
@@ -97,6 +101,41 @@ export default function AuthScreen({ onLogin }) {
                     value={formData.name}
                     onChangeText={(t) => setFormData({ ...formData, name: t })}
                   />
+                </View>
+              </View>
+            )}
+
+            {isSignUp && (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Age</Text>
+                <View style={[styles.inputWithIcon, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+                  <Calendar size={18} color={colors.gray400} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, styles.inputPadded, { color: colors.gray800 }]}
+                    placeholder="Enter your age"
+                    placeholderTextColor={colors.gray400}
+                    value={formData.age}
+                    onChangeText={(t) => setFormData({ ...formData, age: t.replace(/[^0-9]/g, '') })}
+                    keyboardType="number-pad"
+                    maxLength={3}
+                  />
+                </View>
+              </View>
+            )}
+
+            {isSignUp && (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Gender</Text>
+                <View style={styles.genderRow}>
+                  {genderOptions.map((g) => (
+                    <TouchableOpacity
+                      key={g}
+                      style={[styles.genderChip, { backgroundColor: formData.gender === g ? (isDark ? colors.accent : colors.primary500) : colors.gray50, borderColor: formData.gender === g ? 'transparent' : colors.gray200 }]}
+                      onPress={() => setFormData({ ...formData, gender: g })}
+                    >
+                      <Text style={[styles.genderChipText, { color: formData.gender === g ? '#fff' : colors.gray600 }]}>{g}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
             )}
@@ -311,5 +350,20 @@ const styles = StyleSheet.create({
   switchLink: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.semibold,
+  },
+  genderRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  genderChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+  },
+  genderChipText: {
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.medium,
   },
 });
