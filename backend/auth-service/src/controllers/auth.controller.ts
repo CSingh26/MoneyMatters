@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
-import { registerSchema } from "../utils/validation";
-import { createUser, emailExists, toPublicUser } from "../models/user.model";
+import { registerSchema, loginSchema } from "../utils/validation";
+import { createUser, emailExists, findUserByEmail, toPublicUser } from "../models/user.model";
 import { config } from "../utils/config";
 import { User } from "../../../shared/types/index";
 import { formatZodErrors } from "../utils/errors";
+import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 
 export async function register(req: Request, res: Response): Promise<void> {
   try {
@@ -43,6 +44,50 @@ export async function register(req: Request, res: Response): Promise<void> {
     res.status(201).json(toPublicUser(user));
   } catch (error) {
     console.error("Registration error:", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function login(req: Request, res: Response): Promise<void> {
+  try {
+    const parsed = loginSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({ errors: formatZodErrors(parsed.error) });
+      return;
+    }
+
+    const { email, password } = parsed.data;
+    const user = findUserByEmail(email);
+
+    // Generic error to avoid leaking whether email exists
+    const invalidMsg = "Invalid email or password";
+
+    if (!user) {
+      res.status(401).json({ error: invalidMsg });
+      return;
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordMatch) {
+      res.status(401).json({ error: invalidMsg });
+      return;
+    }
+
+    const accessToken = generateAccessToken(user.id, user.email);
+    const refreshToken = generateRefreshToken(user.id, user.email);
+
+    res.status(200).json({
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error instanceof Error ? error.message : error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
