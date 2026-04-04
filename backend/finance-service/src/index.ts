@@ -5,6 +5,9 @@ import { config } from "./utils/config";
 import { createAuthMiddleware } from "../../shared/middleware/auth";
 import incomeRoutes from "./routes/income.routes";
 import expenditureRoutes from "./routes/expenditure.routes";
+import savingsRoutes from "./routes/savings.routes";
+import summaryRoutes from "./routes/summary.routes";
+import goalsRoutes from "./routes/goals.routes";
 
 const app = express();
 
@@ -19,6 +22,9 @@ const authenticate = createAuthMiddleware(config.jwtSecret);
 // Routes
 app.use("/finance/income", authenticate, incomeRoutes);
 app.use("/finance/expenditure", authenticate, expenditureRoutes);
+app.use("/finance/savings", authenticate, savingsRoutes);
+app.use("/finance/summary", authenticate, summaryRoutes);
+app.use("/finance/goals", authenticate, goalsRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {

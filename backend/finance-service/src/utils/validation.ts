@@ -57,3 +57,21 @@ export const variableExpenditureSchema = z.object({
 
 export type FixedExpenditureInput = z.infer<typeof fixedExpenditureSchema>;
 export type VariableExpenditureInput = z.infer<typeof variableExpenditureSchema>;
+
+// ─── Savings Schema ─────────────────────────────────────────
+
+const savingsType = z.enum([
+  "liquid_savings", "stocks", "index_funds", "retirement_401k",
+  "ira", "locked_cd", "crypto", "other",
+]);
+
+const nonNegativeNumber = z.number().min(0, "Amount cannot be negative").finite("Amount must be a finite number");
+
+export const savingsSchema = z.object({
+  currentBalance: nonNegativeNumber,
+  type: savingsType,
+  monthlySavingsAmount: nonNegativeNumber,
+  description: z.string().optional(),
+});
+
+export type SavingsInput = z.infer<typeof savingsSchema>;
