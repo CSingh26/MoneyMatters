@@ -479,6 +479,50 @@ export default function TrackerScreen({ user, navigation }) {
           </View>
         </View>
 
+        {/* Savings Trend Chart */}
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Savings Trend</Text>
+            <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
+              <Text style={[styles.badgeText, { color: '#059669' }]}>
+                {trendView === 'monthly' ? '12 Months' : '5 Years'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.chartContainer}>
+            <BarChart
+              data={(trendView === 'monthly' ? monthlyData : yearlyData).map(d => {
+                const saved = (d.income || 0) - (d.expenses || 0);
+                return {
+                  value: saved / 1000,
+                  label: d.month || d.year,
+                  labelWidth: 28,
+                  frontColor: saved >= 0 ? (isDark ? '#00B894' : '#10B981') : (isDark ? '#E74C3C' : '#EF4444'),
+                  topLabelComponent: () => (
+                    <Text style={{ fontSize: 8, color: colors.gray400, marginBottom: 1 }}>
+                      {(saved / 1000).toFixed(1)}k
+                    </Text>
+                  ),
+                };
+              })}
+              barWidth={trendView === 'monthly' ? 16 : 32}
+              spacing={trendView === 'monthly' ? 10 : 20}
+              initialSpacing={8}
+              roundedTop
+              roundedBottom={false}
+              xAxisThickness={0}
+              yAxisThickness={0}
+              yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
+              xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
+              noOfSections={4}
+              formatYLabel={(val) => `$${val}k`}
+              height={150}
+              isAnimated
+              animationDuration={600}
+            />
+          </View>
+        </View>
+
         {/* Assets */}
         <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
