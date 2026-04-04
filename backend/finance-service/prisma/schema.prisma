@@ -104,9 +104,53 @@ model FinanceGoal {
   @@index([profileId])
 }
 
-enum IncomeFrequency  { monthly  biweekly }
-enum ExpenseFrequency { monthly  biweekly  annual }
-enum FixedCategory    { mortgage  rent  car_loan  student_loan  personal_loan  utilities  insurance  subscriptions  other }
-enum VariableCategory { gas  food_groceries  dining_out  shopping  entertainment  healthcare  transport  misc }
-enum SavingsType      { liquid_savings  stocks  index_funds  retirement_401k  ira  locked_cd  crypto  other }
-enum GoalStatus       { active  completed  paused }
+enum IncomeFrequency {
+  monthly
+  biweekly
+}
+
+enum ExpenseFrequency {
+  monthly
+  biweekly
+  annual
+}
+
+enum FixedCategory {
+  mortgage
+  rent
+  car_loan
+  student_loan
+  personal_loan
+  utilities
+  insurance
+  subscriptions
+  other
+}
+
+enum VariableCategory {
+  gas
+  food_groceries
+  dining_out
+  shopping
+  entertainment
+  healthcare
+  transport
+  misc
+}
+
+enum SavingsType {
+  liquid_savings
+  stocks
+  index_funds
+  retirement_401k
+  ira
+  locked_cd
+  crypto
+  other
+}
+
+enum GoalStatus {
+  active
+  completed
+  paused
+}

@@ -1,9 +1,9 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../../shared/types';
-import { sendSuccess, sendError } from '../../shared/utils/response';
+import { AuthenticatedRequest } from '../../../shared/types';
+import { sendSuccess, sendError } from '../../../shared/utils/response';
 import { createGoalSchema, updateGoalSchema } from '../validators/finance.validator';
 import { findOrCreateProfile, createGoal, updateGoal, deleteGoal, findGoalById } from '../models/finance.model';
-import { encrypt } from '../../shared/utils/crypto';
+import { encrypt } from '../../../shared/utils/crypto';
 
 const encKey = () => process.env.ENCRYPTION_KEY!;
 
@@ -29,7 +29,7 @@ export async function addHandler(req: AuthenticatedRequest, res: Response, next:
 export async function editHandler(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const body = updateGoalSchema.parse(req.body);
-    const goal = await findGoalById(req.params.id);
+    const goal = await findGoalById(req.params.id as string);
     if (!goal) return sendError(res, 'Goal not found', 404);
 
     const profile = await findOrCreateProfile(req.user!.userId);
@@ -48,7 +48,7 @@ export async function editHandler(req: AuthenticatedRequest, res: Response, next
       data.current = body.current;
     }
 
-    const updated = await updateGoal(req.params.id, data);
+    const updated = await updateGoal(req.params.id as string, data);
     sendSuccess(res, updated, 200, 'Goal updated');
   } catch (err: any) {
     if (err.status) return sendError(res, err.message, err.status);
@@ -58,13 +58,13 @@ export async function editHandler(req: AuthenticatedRequest, res: Response, next
 
 export async function removeHandler(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const goal = await findGoalById(req.params.id);
+    const goal = await findGoalById(req.params.id as string);
     if (!goal) return sendError(res, 'Goal not found', 404);
 
     const profile = await findOrCreateProfile(req.user!.userId);
     if (goal.profileId !== profile.id) return sendError(res, 'Forbidden', 403);
 
-    await deleteGoal(req.params.id);
+    await deleteGoal(req.params.id as string);
     sendSuccess(res, null, 200, 'Goal deleted');
   } catch (err: any) {
     if (err.status) return sendError(res, err.message, err.status);

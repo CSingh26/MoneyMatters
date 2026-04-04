@@ -1,4 +1,4 @@
-import { decrypt } from '../../shared/utils/crypto';
+import { decrypt } from '../../../shared/utils/crypto';
 import { findProfileByUserId, updateHealthScore } from '../models/finance.model';
 
 const encKey = () => process.env.ENCRYPTION_KEY!;

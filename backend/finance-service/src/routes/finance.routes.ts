@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate } from '../../shared/middleware/auth';
+import { authenticate } from '../../../shared/middleware/auth';
 import * as income from '../controllers/income.controller';
 import * as expenditure from '../controllers/expenditure.controller';
 import * as savings from '../controllers/savings.controller';

@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../../shared/types';
-import { sendSuccess, sendError } from '../../shared/utils/response';
+import { AuthenticatedRequest } from '../../../shared/types';
+import { sendSuccess, sendError } from '../../../shared/utils/response';
 import * as summaryService from '../services/summary.service';
 
 export async function summaryHandler(req: AuthenticatedRequest, res: Response, next: NextFunction) {

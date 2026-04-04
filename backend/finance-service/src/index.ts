@@ -2,9 +2,9 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { errorHandler } from '../shared/middleware/errorHandler';
-import { createRateLimiter } from '../shared/middleware/rateLimiter';
-import { logger } from '../shared/utils/logger';
+import { errorHandler } from '../../shared/middleware/errorHandler';
+import { createRateLimiter } from '../../shared/middleware/rateLimiter';
+import { logger } from '../../shared/utils/logger';
 import financeRoutes from './routes/finance.routes';
 
 const app = express();

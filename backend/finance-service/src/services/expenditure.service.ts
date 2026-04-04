@@ -1,4 +1,4 @@
-import { encrypt, decrypt } from '../../shared/utils/crypto';
+import { encrypt, decrypt } from '../../../shared/utils/crypto';
 import {
   findOrCreateProfile,
   createFixed, updateFixed, deleteFixed, findFixedById,

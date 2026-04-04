@@ -1,4 +1,4 @@
-import { encrypt, decrypt } from '../../shared/utils/crypto';
+import { encrypt, decrypt } from '../../../shared/utils/crypto';
 import { findOrCreateProfile, createSavings, updateSavings, deleteSavings, findSavingsById } from '../models/finance.model';
 
 const encKey = () => process.env.ENCRYPTION_KEY!;
