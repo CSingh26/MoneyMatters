@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { authenticate } from '../../shared/middleware/auth';
-import { createRateLimiter } from '../../shared/middleware/rateLimiter';
+import { authenticate } from '../../../shared/middleware/auth';
+import { createRateLimiter } from '../../../shared/middleware/rateLimiter';
 import {
   registerHandler,
   loginHandler,

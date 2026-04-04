@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../../shared/types';
-import { sendSuccess, sendError } from '../../shared/utils/response';
+import { AuthenticatedRequest } from '../../../shared/types';
+import { sendSuccess, sendError } from '../../../shared/utils/response';
 import {
   registerSchema,
   loginSchema,

@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { encrypt, decrypt } from '../../shared/utils/crypto';
+import { encrypt, decrypt } from '../../../shared/utils/crypto';
 import {
   createUser,
   findUserByEmail,

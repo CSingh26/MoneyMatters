@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
-import { signAccessToken, signRefreshToken, verifyToken } from '../../shared/utils/jwt';
+import { SignOptions } from 'jsonwebtoken';
+import { signAccessToken, signRefreshToken, verifyToken } from '../../../shared/utils/jwt';
 import {
   createRefreshToken,
   findRefreshTokenByHash,
@@ -14,15 +15,15 @@ function hashToken(token: string): string {
 export async function generateTokenPair(userId: string, email: string) {
   const accessSecret = process.env.JWT_ACCESS_SECRET!;
   const refreshSecret = process.env.JWT_REFRESH_SECRET!;
-  const accessExpiry = process.env.JWT_ACCESS_EXPIRY ?? '15m';
-  const refreshExpiry = process.env.JWT_REFRESH_EXPIRY ?? '7d';
+  const accessExpiryStr = process.env.JWT_ACCESS_EXPIRY ?? '15m';
+  const refreshExpiryStr = process.env.JWT_REFRESH_EXPIRY ?? '7d';
 
-  const accessToken = signAccessToken({ userId, email }, accessSecret, accessExpiry);
-  const refreshTokenRaw = signRefreshToken({ userId, email }, refreshSecret, refreshExpiry);
+  const accessToken = signAccessToken({ userId, email }, accessSecret, accessExpiryStr as SignOptions['expiresIn']);
+  const refreshTokenRaw = signRefreshToken({ userId, email }, refreshSecret, refreshExpiryStr as SignOptions['expiresIn']);
 
   // Persist hashed refresh token
   const tokenHash = hashToken(refreshTokenRaw);
-  const expiresAt = new Date(Date.now() + parseDuration(refreshExpiry));
+  const expiresAt = new Date(Date.now() + parseDuration(refreshExpiryStr));
   await createRefreshToken({ userId, tokenHash, expiresAt });
 
   return { accessToken, refreshToken: refreshTokenRaw };
