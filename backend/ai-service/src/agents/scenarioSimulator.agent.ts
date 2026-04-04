@@ -1,4 +1,4 @@
-import { chatJson } from '../services/anthropic.service';
+import { chatJson } from '../services/openai.service';
 import {
   SCENARIO_SIMULATOR_SYSTEM,
   buildScenarioUserMessage,

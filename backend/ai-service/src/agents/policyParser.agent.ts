@@ -1,4 +1,4 @@
-import { chatJson } from '../services/anthropic.service';
+import { chatJson } from '../services/openai.service';
 import { POLICY_PARSER_SYSTEM, buildParserUserMessage } from '../prompts/policyParser.prompt';
 import { logger } from '../../../shared/utils/logger';
 
