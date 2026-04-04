@@ -1,153 +1,336 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  SafeAreaView, StatusBar, FlatList,
+  SafeAreaView, StatusBar, Modal, Alert, Animated, Dimensions,
 } from 'react-native';
-import { BarChart, PieChart } from 'react-native-gifted-charts';
+import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import {
   Wallet, TrendingUp, TrendingDown, PiggyBank, Plus, ChevronLeft,
   ChevronRight, Car, Landmark, Laptop, Home, Target, ArrowLeft,
+  X, Edit3, Trash2, Search, Filter, Sun, Moon, Calendar,
+  ShoppingBag, Coffee, CreditCard, DollarSign, Briefcase, Heart,
 } from 'lucide-react-native';
 import StatCard from '../components/StatCard';
 import {
-  financialSummary, monthlyData, spendingByCategory,
+  financialSummary, monthlyData, yearlyData, spendingByCategory,
   transactions as mockTransactions, assets, savingsGoal,
 } from '../data/mockData';
-import { Colors, FontSizes, FontWeights, Spacing, Radii, Shadows, CardStyle } from '../theme';
+import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
+import { useTheme } from '../ThemeContext';
 
-const ITEMS_PER_PAGE = 5;
+const { width: screenWidth } = Dimensions.get('window');
 
-const assetIcons = {
-  car: Car,
-  piggyBank: PiggyBank,
-  laptop: Laptop,
-  trendingUp: TrendingUp,
-  home: Home,
+const assetIcons = { car: Car, piggyBank: PiggyBank, laptop: Laptop, trendingUp: TrendingUp, home: Home };
+const categoryIcons = {
+  Food: Coffee, Transport: Car, Shopping: ShoppingBag, Mortgage: Home,
+  Insurance: Heart, Loan: CreditCard, Salary: DollarSign, Freelance: Briefcase,
 };
+const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Mortgage', 'Insurance', 'Loan', 'Salary', 'Freelance', 'Other'];
+const ITEMS_PER_PAGE = 8;
 
 export default function TrackerScreen({ user, navigation }) {
+  const { isDark, toggleTheme, colors } = useTheme();
   const [allTransactions, setAllTransactions] = useState(mockTransactions);
   const [currentPage, setCurrentPage] = useState(1);
+  const [trendView, setTrendView] = useState('monthly');
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editingTxn, setEditingTxn] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [tooltipData, setTooltipData] = useState(null);
   const [formData, setFormData] = useState({
-    type: 'Expense',
-    category: 'Food',
-    amount: '',
-    date: new Date().toISOString().split('T')[0],
-    description: '',
+    type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0],
+    description: '', note: '',
   });
 
-  const totalPages = Math.ceil(allTransactions.length / ITEMS_PER_PAGE);
-  const paginatedTransactions = allTransactions.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const resetForm = () => {
+    setFormData({ type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0], description: '', note: '' });
+    setEditingTxn(null);
+  };
 
-  const handleAddTransaction = () => {
+  // Filter transactions
+  const filteredTransactions = useMemo(() => {
+    let list = allTransactions;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(t => t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q));
+    }
+    if (filterCategory !== 'All') {
+      list = list.filter(t => t.category === filterCategory);
+    }
+    return list;
+  }, [allTransactions, searchQuery, filterCategory]);
+
+  // Compute dynamic summary
+  const dynamicSummary = useMemo(() => {
+    const totalIncome = allTransactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+    const totalExpenses = allTransactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+    const net = totalIncome - totalExpenses;
+    return { totalIncome, totalExpenses, net };
+  }, [allTransactions]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE));
+  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Group transactions by date
+  const groupedTransactions = useMemo(() => {
+    const groups = {};
+    paginatedTransactions.forEach(txn => {
+      if (!groups[txn.date]) groups[txn.date] = [];
+      groups[txn.date].push(txn);
+    });
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [paginatedTransactions]);
+
+  // CRUD Operations
+  const handleSaveTransaction = () => {
     if (!formData.amount || !formData.description) return;
-    const newTxn = {
-      id: allTransactions.length + 1,
-      ...formData,
-      amount: parseFloat(formData.amount),
-    };
-    setAllTransactions([newTxn, ...allTransactions]);
-    setFormData({ type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0], description: '' });
+    if (editingTxn) {
+      setAllTransactions(prev => prev.map(t => t.id === editingTxn.id ? { ...t, ...formData, amount: parseFloat(formData.amount) } : t));
+    } else {
+      const newTxn = { id: Date.now(), ...formData, amount: parseFloat(formData.amount) };
+      setAllTransactions(prev => [newTxn, ...prev]);
+    }
+    setShowFormModal(false);
+    resetForm();
     setCurrentPage(1);
+  };
+
+  const handleEditTransaction = (txn) => {
+    setEditingTxn(txn);
+    setFormData({ type: txn.type, category: txn.category, amount: String(txn.amount), date: txn.date, description: txn.description, note: txn.note || '' });
+    setShowFormModal(true);
+  };
+
+  const handleDeleteTransaction = (txn) => {
+    Alert.alert('Delete Transaction', `Are you sure you want to delete "${txn.description}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+        setAllTransactions(prev => prev.filter(t => t.id !== txn.id));
+      }},
+    ]);
   };
 
   const goalProgress = ((savingsGoal.current / savingsGoal.target) * 100).toFixed(0);
 
-  // Bar chart data for gifted-charts
-  const barData = [];
-  monthlyData.forEach((m) => {
-    barData.push({
-      value: m.income,
-      label: m.month,
-      spacing: 4,
-      frontColor: Colors.primary500,
-      topLabelComponent: () => null,
-    });
-    barData.push({
-      value: m.expenses,
-      frontColor: Colors.lavender400,
-    });
-  });
+  // Trend chart data
+  const trendChartData = useMemo(() => {
+    if (trendView === 'monthly') {
+      return {
+        income: monthlyData.map(m => ({ value: m.income, label: m.month })),
+        expenses: monthlyData.map(m => ({ value: m.expenses, label: m.month })),
+        maxValue: 6000,
+      };
+    }
+    return {
+      income: yearlyData.map(y => ({ value: y.income, label: y.year })),
+      expenses: yearlyData.map(y => ({ value: y.expenses, label: y.year })),
+      maxValue: 70000,
+    };
+  }, [trendView]);
 
-  // Pie chart data for gifted-charts
-  const pieData = spendingByCategory.map((c) => ({
-    value: c.value,
-    color: c.color,
-    text: c.name,
-    textColor: Colors.gray600,
-    textSize: 10,
+  // Bar chart data
+  const barData = useMemo(() => {
+    const data = [];
+    const source = trendView === 'monthly' ? monthlyData.slice(-6) : yearlyData;
+    source.forEach(m => {
+      const inc = m.income || 0;
+      const exp = m.expenses || 0;
+      data.push({
+        value: inc, label: m.month || m.year, labelWidth: 30, spacing: 2,
+        frontColor: isDark ? '#7B5EA7' : '#FF4081',
+        topLabelComponent: () => <Text style={{ fontSize: 8, color: colors.gray400, marginBottom: 1 }}>{(inc/1000).toFixed(1)}k</Text>,
+      });
+      data.push({
+        value: exp,
+        frontColor: isDark ? '#E040FB' : '#AB47BC',
+        topLabelComponent: () => <Text style={{ fontSize: 8, color: colors.gray400, marginBottom: 1 }}>{(exp/1000).toFixed(1)}k</Text>,
+      });
+    });
+    return data;
+  }, [trendView, isDark, colors]);
+
+  // Pie chart data
+  const pieData = spendingByCategory.map(c => ({
+    value: c.value, color: c.color, text: c.name, textColor: colors.gray600, textSize: 10,
   }));
 
+  const accentColor = isDark ? colors.accent : '#FF4081';
+  const secondaryAccent = isDark ? '#9B7BD4' : '#AB47BC';
+
   return (
-    <SafeAreaView style={styles.page}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bgPrimary} />
+    <SafeAreaView style={[styles.page, { backgroundColor: colors.bgPrimary }]}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.bgPrimary} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.navigate('Hub')} style={styles.backBtn}>
-            <ArrowLeft size={20} color={Colors.primary500} />
+          <TouchableOpacity onPress={() => navigation.navigate('Hub')} style={[styles.backBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <ArrowLeft size={20} color={accentColor} />
           </TouchableOpacity>
-          <View>
-            <Text style={styles.pageTitle}>Financial Tracker</Text>
-            <Text style={styles.pageSubtitle}>Monitor your finances and track spending</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.pageTitle, { color: colors.gray800 }]}>Financial Tracker</Text>
+            <Text style={[styles.pageSubtitle, { color: colors.gray500 }]}>Monitor your finances and track spending</Text>
+          </View>
+          <TouchableOpacity onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: colors.gray50 }]}>
+            {isDark ? <Sun size={18} color="#FDCB6E" /> : <Moon size={18} color="#6C5CE7" />}
+          </TouchableOpacity>
+        </View>
+
+        {/* ═══ HERO TREND CHART ═══ */}
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Income & Expense Trend</Text>
+          </View>
+          {/* Toggle */}
+          <View style={[styles.segmentControl, { backgroundColor: colors.gray50 }]}>
+            {['monthly', 'yearly'].map(view => (
+              <TouchableOpacity
+                key={view}
+                style={[styles.segmentBtn, trendView === view && { backgroundColor: colors.cardBg, ...Shadows.sm }]}
+                onPress={() => setTrendView(view)}
+              >
+                <Text style={[styles.segmentText, { color: trendView === view ? colors.gray800 : colors.gray400 }]}>
+                  {view === 'monthly' ? 'Monthly (12 mo)' : 'Yearly (5 yr)'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {/* Line Chart */}
+          <View style={styles.chartContainer}>
+            <LineChart
+              data={trendChartData.income}
+              data2={trendChartData.expenses}
+              height={200}
+              spacing={trendView === 'monthly' ? 24 : 50}
+              color1={accentColor}
+              color2={secondaryAccent}
+              dataPointsColor1={accentColor}
+              dataPointsColor2={secondaryAccent}
+              startFillColor1={accentColor}
+              startFillColor2={secondaryAccent}
+              endFillColor1="transparent"
+              endFillColor2="transparent"
+              startOpacity={0.2}
+              endOpacity={0}
+              areaChart
+              curved
+              thickness={2.5}
+              hideDataPoints={false}
+              textFontSize={0}
+              xAxisColor={colors.gray200}
+              yAxisColor="transparent"
+              yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
+              xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 10 }}
+              noOfSections={4}
+              maxValue={trendChartData.maxValue}
+              isAnimated
+              animationDuration={800}
+              pointerConfig={{
+                pointerStripHeight: 200,
+                pointerStripColor: colors.gray300,
+                pointerStripWidth: 1,
+                pointerColor: accentColor,
+                radius: 4,
+                pointerLabelWidth: 100,
+                pointerLabelHeight: 50,
+                activatePointersOnLongPress: false,
+                autoAdjustPointerLabelPosition: true,
+                pointerLabelComponent: (items) => {
+                  return (
+                    <View style={[styles.tooltipBox, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: colors.gray200 }]}>
+                      {items.map((item, i) => (
+                        <Text key={i} style={[styles.tooltipText, { color: i === 0 ? accentColor : secondaryAccent }]}>
+                          {i === 0 ? 'Inc' : 'Exp'}: ${item.value >= 1000 ? `$${(item.value/1000).toFixed(1)}k` : `$${item.value}`}
+                        </Text>
+                      ))}
+                    </View>
+                  );
+                },
+              }}
+            />
+          </View>
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: accentColor }]} />
+              <Text style={[styles.legendText, { color: colors.gray500 }]}>Income</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: secondaryAccent }]} />
+              <Text style={[styles.legendText, { color: colors.gray500 }]}>Expenses</Text>
+            </View>
           </View>
         </View>
 
-        {/* Stats */}
+        {/* ═══ SUMMARY STAT CARDS ═══ */}
         <View style={styles.statsGrid}>
-          <StatCard icon={Wallet} label="Total Balance" value={`$${financialSummary.totalBalance.toLocaleString()}`} color="purple" />
-          <StatCard icon={TrendingUp} label="Monthly Income" value={`$${financialSummary.monthlyIncome.toLocaleString()}`} trend="+3.2%" trendUp color="green" />
-          <StatCard icon={TrendingDown} label="Monthly Expenses" value={`$${financialSummary.monthlyExpenses.toLocaleString()}`} trend="-1.5%" trendUp={false} color="orange" />
-          <StatCard icon={PiggyBank} label="Savings Rate" value={`${financialSummary.savingsRate}%`} color="blue" />
+          <View style={[styles.statMiniCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <TrendingUp size={20} color={colors.success} />
+            <Text style={[styles.statMiniValue, { color: colors.gray800 }]}>${dynamicSummary.totalIncome.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</Text>
+            <Text style={[styles.statMiniLabel, { color: colors.gray500 }]}>Total Income</Text>
+            <Text style={[styles.deltaText, { color: colors.success }]}>↑ +3.2%</Text>
+          </View>
+          <View style={[styles.statMiniCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <TrendingDown size={20} color={colors.danger} />
+            <Text style={[styles.statMiniValue, { color: colors.gray800 }]}>${dynamicSummary.totalExpenses.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</Text>
+            <Text style={[styles.statMiniLabel, { color: colors.gray500 }]}>Total Expenses</Text>
+            <Text style={[styles.deltaText, { color: colors.danger }]}>↓ -1.5%</Text>
+          </View>
+          <View style={[styles.statMiniCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder, borderTopColor: colors.success, borderTopWidth: 3 }]}>
+            <PiggyBank size={20} color={colors.success} />
+            <Text style={[styles.statMiniValue, { color: colors.success }]}>${dynamicSummary.net.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</Text>
+            <Text style={[styles.statMiniLabel, { color: colors.gray500 }]}>Net Savings</Text>
+            <Text style={[styles.deltaText, { color: colors.success }]}>↑ {financialSummary.savingsRate}%</Text>
+          </View>
         </View>
 
-        {/* Bar Chart */}
-        <View style={[styles.cardBox]}>
+        {/* ═══ BAR CHART ═══ */}
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Income vs Expenses</Text>
-            <View style={styles.badgePurple}>
-              <Text style={styles.badgePurpleText}>Last 6 Months</Text>
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Income vs Expenses</Text>
+            <View style={[styles.badge, { backgroundColor: colors.primary50 }]}>
+              <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>
+                {trendView === 'monthly' ? 'Last 6 Months' : 'Last 5 Years'}
+              </Text>
             </View>
           </View>
           <View style={styles.chartContainer}>
             <BarChart
               data={barData}
-              barWidth={16}
-              spacing={20}
+              barWidth={14}
+              spacing={14}
+              initialSpacing={8}
               roundedTop
               roundedBottom={false}
               xAxisThickness={0}
               yAxisThickness={0}
-              yAxisTextStyle={{ color: Colors.gray500, fontSize: 11 }}
-              xAxisLabelTextStyle={{ color: Colors.gray500, fontSize: 11 }}
+              yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
+              xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
               noOfSections={4}
-              maxValue={6000}
+              maxValue={trendView === 'monthly' ? 6000 : 70000}
               height={200}
               isAnimated
               animationDuration={600}
+              labelsDistanceFromXaxis={0}
             />
           </View>
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: Colors.primary500 }]} />
-              <Text style={styles.legendText}>Income</Text>
+              <View style={[styles.legendDot, { backgroundColor: isDark ? '#7B5EA7' : '#FF4081' }]} />
+              <Text style={[styles.legendText, { color: colors.gray500 }]}>Income</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: Colors.lavender400 }]} />
-              <Text style={styles.legendText}>Expenses</Text>
+              <View style={[styles.legendDot, { backgroundColor: isDark ? '#E040FB' : '#AB47BC' }]} />
+              <Text style={[styles.legendText, { color: colors.gray500 }]}>Expenses</Text>
             </View>
           </View>
         </View>
 
-        {/* Donut Chart */}
-        <View style={[styles.cardBox]}>
+        {/* ═══ DONUT CHART ═══ */}
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Spending Breakdown</Text>
-            <View style={[styles.badgePurple, { backgroundColor: Colors.blue50 }]}>
-              <Text style={[styles.badgePurpleText, { color: Colors.blue600 }]}>By Category</Text>
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Spending Breakdown</Text>
+            <View style={[styles.badge, { backgroundColor: colors.blue50 }]}>
+              <Text style={[styles.badgeText, { color: isDark ? colors.blue600 : '#2563EB' }]}>By Category</Text>
             </View>
           </View>
           <View style={styles.donutContainer}>
@@ -156,11 +339,11 @@ export default function TrackerScreen({ user, navigation }) {
               donut
               radius={90}
               innerRadius={55}
-              innerCircleColor={Colors.white}
+              innerCircleColor={colors.cardBg}
               centerLabelComponent={() => (
                 <View style={styles.donutCenter}>
-                  <Text style={styles.donutTotal}>$3,250</Text>
-                  <Text style={styles.donutLabel}>Total</Text>
+                  <Text style={[styles.donutTotal, { color: colors.gray800 }]}>$3,250</Text>
+                  <Text style={[styles.donutLabel, { color: colors.gray500 }]}>Total</Text>
                 </View>
               )}
               isAnimated
@@ -170,126 +353,154 @@ export default function TrackerScreen({ user, navigation }) {
             {spendingByCategory.map((c, i) => (
               <View key={i} style={styles.categoryItem}>
                 <View style={[styles.legendDot, { backgroundColor: c.color }]} />
-                <Text style={styles.categoryName}>{c.name}</Text>
-                <Text style={styles.categoryValue}>${c.value}</Text>
+                <Text style={[styles.categoryName, { color: colors.gray600 }]}>{c.name}</Text>
+                <Text style={[styles.categoryValue, { color: colors.gray800 }]}>${c.value}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        {/* Transaction Manager */}
-        <View style={styles.cardBox}>
-          <Text style={styles.cardTitle}>Transaction Manager</Text>
-
-          {/* Add Form */}
-          <View style={styles.formRow}>
-            <View style={styles.formField}>
-              <Text style={styles.formLabel}>Amount ($)</Text>
-              <TextInput
-                style={styles.formInput}
-                placeholder="0.00"
-                placeholderTextColor={Colors.gray400}
-                value={formData.amount}
-                onChangeText={(t) => setFormData({ ...formData, amount: t })}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={[styles.formField, { flex: 2 }]}>
-              <Text style={styles.formLabel}>Description</Text>
-              <TextInput
-                style={styles.formInput}
-                placeholder="e.g., Grocery run"
-                placeholderTextColor={Colors.gray400}
-                value={formData.description}
-                onChangeText={(t) => setFormData({ ...formData, description: t })}
-              />
-            </View>
-            <TouchableOpacity style={styles.addBtn} onPress={handleAddTransaction}>
-              <Plus size={16} color={Colors.white} />
-              <Text style={styles.addBtnText}>Add</Text>
+        {/* ═══ TRANSACTIONS (FULL CRUD) ═══ */}
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Transactions</Text>
+            <TouchableOpacity
+              style={[styles.addFab, { backgroundColor: accentColor }]}
+              onPress={() => { resetForm(); setShowFormModal(true); }}
+            >
+              <Plus size={16} color="#FFF" />
+              <Text style={styles.addFabText}>Add</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Table */}
-          {paginatedTransactions.map((txn) => (
-            <View key={txn.id} style={styles.txnRow}>
-              <View style={styles.txnLeft}>
-                <Text style={styles.txnDesc}>{txn.description}</Text>
-                <Text style={styles.txnDate}>{txn.date}</Text>
-              </View>
-              <View style={styles.txnRight}>
-                <View style={[styles.txnBadge, { backgroundColor: txn.type === 'Income' ? Colors.successLight : Colors.warningLight }]}>
-                  <Text style={[styles.txnBadgeText, { color: txn.type === 'Income' ? '#059669' : '#D97706' }]}>{txn.category}</Text>
-                </View>
-                <Text style={[styles.txnAmount, { color: txn.type === 'Income' ? Colors.success : Colors.gray700 }]}>
-                  {txn.type === 'Income' ? '+' : '-'}${txn.amount.toFixed(2)}
-                </Text>
-              </View>
+          {/* Search & Filter */}
+          <View style={styles.searchRow}>
+            <View style={[styles.searchBox, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+              <Search size={16} color={colors.gray400} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.gray800 }]}
+                placeholder="Search transactions..."
+                placeholderTextColor={colors.gray400}
+                value={searchQuery}
+                onChangeText={(t) => { setSearchQuery(t); setCurrentPage(1); }}
+              />
+            </View>
+          </View>
+          {/* Category Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+            {['All', ...CATEGORIES].map(cat => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.filterChip, {
+                  backgroundColor: filterCategory === cat ? accentColor : colors.gray50,
+                  borderColor: filterCategory === cat ? accentColor : colors.gray200,
+                }]}
+                onPress={() => { setFilterCategory(cat); setCurrentPage(1); }}
+              >
+                <Text style={[styles.filterChipText, { color: filterCategory === cat ? '#FFF' : colors.gray600 }]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Transaction List Grouped by Date */}
+          {groupedTransactions.length === 0 && (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, { color: colors.gray400 }]}>No transactions found</Text>
+            </View>
+          )}
+          {groupedTransactions.map(([date, txns]) => (
+            <View key={date} style={styles.txnGroup}>
+              <Text style={[styles.txnGroupDate, { color: colors.gray500 }]}>{date}</Text>
+              {txns.map(txn => {
+                const CatIcon = categoryIcons[txn.category] || DollarSign;
+                return (
+                  <View key={txn.id} style={[styles.txnRow, { borderBottomColor: colors.gray100 }]}>
+                    <View style={[styles.txnIconBox, { backgroundColor: txn.type === 'Income' ? colors.successLight : colors.warningLight }]}>
+                      <CatIcon size={16} color={txn.type === 'Income' ? '#059669' : '#D97706'} />
+                    </View>
+                    <View style={styles.txnInfo}>
+                      <Text style={[styles.txnDesc, { color: colors.gray800 }]}>{txn.description}</Text>
+                      <Text style={[styles.txnCategory, { color: colors.gray400 }]}>{txn.category}</Text>
+                    </View>
+                    <Text style={[styles.txnAmount, { color: txn.type === 'Income' ? colors.success : colors.gray700 }]}>
+                      {txn.type === 'Income' ? '+' : '-'}${txn.amount.toFixed(2)}
+                    </Text>
+                    <View style={styles.txnActions}>
+                      <TouchableOpacity onPress={() => handleEditTransaction(txn)} style={styles.txnActionBtn}>
+                        <Edit3 size={14} color={colors.gray400} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteTransaction(txn)} style={styles.txnActionBtn}>
+                        <Trash2 size={14} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           ))}
 
           {/* Pagination */}
           <View style={styles.pagination}>
             <TouchableOpacity
-              style={[styles.pageBtn, currentPage === 1 && styles.pageBtnDisabled]}
-              onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              style={[styles.pageBtn, { backgroundColor: colors.gray100 }, currentPage === 1 && styles.pageBtnDisabled]}
+              onPress={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
             >
-              <ChevronLeft size={16} color={currentPage === 1 ? Colors.gray300 : Colors.gray700} />
+              <ChevronLeft size={16} color={currentPage === 1 ? colors.gray300 : colors.gray700} />
             </TouchableOpacity>
-            <Text style={styles.pageInfo}>Page {currentPage} of {totalPages}</Text>
+            <Text style={[styles.pageInfo, { color: colors.gray500 }]}>Page {currentPage} of {totalPages}</Text>
             <TouchableOpacity
-              style={[styles.pageBtn, currentPage === totalPages && styles.pageBtnDisabled]}
-              onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              style={[styles.pageBtn, { backgroundColor: colors.gray100 }, currentPage === totalPages && styles.pageBtnDisabled]}
+              onPress={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
             >
-              <ChevronRight size={16} color={currentPage === totalPages ? Colors.gray300 : Colors.gray700} />
+              <ChevronRight size={16} color={currentPage === totalPages ? colors.gray300 : colors.gray700} />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Savings Goal */}
-        <View style={styles.cardBox}>
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Savings Goal</Text>
-            <Target size={20} color={Colors.primary500} />
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Savings Goal</Text>
+            <Target size={20} color={accentColor} />
           </View>
-          <Text style={styles.goalName}>{savingsGoal.name}</Text>
-          <Text style={styles.goalMeta}>Target: ${savingsGoal.target.toLocaleString()} by {savingsGoal.deadline}</Text>
+          <Text style={[styles.goalName, { color: colors.gray800 }]}>{savingsGoal.name}</Text>
+          <Text style={[styles.goalMeta, { color: colors.gray500 }]}>Target: ${savingsGoal.target.toLocaleString()} by {savingsGoal.deadline}</Text>
           <View style={styles.progressHeader}>
-            <Text style={styles.progressValue}>${savingsGoal.current.toLocaleString()}</Text>
-            <Text style={styles.progressTarget}>${savingsGoal.target.toLocaleString()}</Text>
+            <Text style={[styles.progressValue, { color: colors.gray800 }]}>${savingsGoal.current.toLocaleString()}</Text>
+            <Text style={[styles.progressTarget, { color: colors.gray500 }]}>${savingsGoal.target.toLocaleString()}</Text>
           </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${goalProgress}%` }]} />
+          <View style={[styles.progressTrack, { backgroundColor: colors.gray100 }]}>
+            <View style={[styles.progressFill, { width: `${goalProgress}%`, backgroundColor: accentColor }]} />
           </View>
-          <View style={styles.badgePurple}>
-            <Text style={styles.badgePurpleText}>{goalProgress}% complete</Text>
+          <View style={[styles.badge, { backgroundColor: colors.primary50, alignSelf: 'flex-start' }]}>
+            <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>{goalProgress}% complete</Text>
           </View>
         </View>
 
         {/* Assets */}
-        <View style={styles.cardBox}>
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Your Assets</Text>
-            <View style={[styles.badgePurple, { backgroundColor: Colors.successLight }]}>
-              <Text style={[styles.badgePurpleText, { color: '#059669' }]}>
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Your Assets</Text>
+            <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
+              <Text style={[styles.badgeText, { color: '#059669' }]}>
                 ${assets.reduce((s, a) => s + a.value, 0).toLocaleString()} total
               </Text>
             </View>
           </View>
-          {assets.map((asset) => {
+          {assets.map(asset => {
             const IconComp = assetIcons[asset.icon] || Wallet;
             return (
               <View key={asset.id} style={styles.assetItem}>
-                <View style={styles.assetIcon}>
-                  <IconComp size={18} color={Colors.primary500} />
+                <View style={[styles.assetIcon, { backgroundColor: colors.primary50 }]}>
+                  <IconComp size={18} color={accentColor} />
                 </View>
                 <View style={styles.assetInfo}>
-                  <Text style={styles.assetName}>{asset.name}</Text>
-                  <Text style={styles.assetCategory}>{asset.category}</Text>
+                  <Text style={[styles.assetName, { color: colors.gray800 }]}>{asset.name}</Text>
+                  <Text style={[styles.assetCategory, { color: colors.gray500 }]}>{asset.category}</Text>
                 </View>
-                <Text style={styles.assetValue}>${asset.value.toLocaleString()}</Text>
+                <Text style={[styles.assetValue, { color: colors.gray800 }]}>${asset.value.toLocaleString()}</Text>
               </View>
             );
           })}
@@ -297,107 +508,208 @@ export default function TrackerScreen({ user, navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* ═══ ADD/EDIT TRANSACTION MODAL ═══ */}
+      <Modal visible={showFormModal} animationType="slide" transparent onRequestClose={() => setShowFormModal(false)}>
+        <View style={[styles.modalOverlay]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.cardBg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.gray800 }]}>{editingTxn ? 'Edit Transaction' : 'Add Transaction'}</Text>
+              <TouchableOpacity onPress={() => { setShowFormModal(false); resetForm(); }} style={[styles.modalCloseBtn, { backgroundColor: colors.gray100 }]}>
+                <X size={18} color={colors.gray500} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Type Toggle */}
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Type</Text>
+              <View style={[styles.segmentControl, { backgroundColor: colors.gray50, marginBottom: Spacing.lg }]}>
+                {['Income', 'Expense'].map(type => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.segmentBtn, formData.type === type && { backgroundColor: type === 'Income' ? colors.success : colors.danger }]}
+                    onPress={() => setFormData(f => ({ ...f, type }))}
+                  >
+                    <Text style={[styles.segmentText, { color: formData.type === type ? '#FFF' : colors.gray500 }]}>{type}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Title */}
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Title</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="e.g., Grocery Store"
+                placeholderTextColor={colors.gray400}
+                value={formData.description}
+                onChangeText={t => setFormData(f => ({ ...f, description: t }))}
+              />
+
+              {/* Amount */}
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Amount ($)</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="0.00"
+                placeholderTextColor={colors.gray400}
+                value={formData.amount}
+                onChangeText={t => setFormData(f => ({ ...f, amount: t }))}
+                keyboardType="numeric"
+              />
+
+              {/* Category */}
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.lg }}>
+                {CATEGORIES.map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.filterChip, {
+                      backgroundColor: formData.category === cat ? accentColor : colors.gray50,
+                      borderColor: formData.category === cat ? accentColor : colors.gray200,
+                    }]}
+                    onPress={() => setFormData(f => ({ ...f, category: cat }))}
+                  >
+                    <Text style={[styles.filterChipText, { color: formData.category === cat ? '#FFF' : colors.gray600 }]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Date */}
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Date</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.gray400}
+                value={formData.date}
+                onChangeText={t => setFormData(f => ({ ...f, date: t }))}
+              />
+
+              {/* Note */}
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Note (optional)</Text>
+              <TextInput
+                style={[styles.formInput, styles.formInputMultiline, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="Add a note..."
+                placeholderTextColor={colors.gray400}
+                value={formData.note}
+                onChangeText={t => setFormData(f => ({ ...f, note: t }))}
+                multiline
+              />
+
+              {/* Save Button */}
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: accentColor }]} onPress={handleSaveTransaction}>
+                <Text style={styles.saveBtnText}>{editingTxn ? 'Save Changes' : 'Add Transaction'}</Text>
+              </TouchableOpacity>
+
+              {editingTxn && (
+                <TouchableOpacity
+                  style={[styles.deleteModalBtn, { borderColor: colors.danger }]}
+                  onPress={() => { setShowFormModal(false); handleDeleteTransaction(editingTxn); resetForm(); }}
+                >
+                  <Trash2 size={16} color={colors.danger} />
+                  <Text style={[styles.deleteModalBtnText, { color: colors.danger }]}>Delete Transaction</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: Colors.bgPrimary },
+  page: { flex: 1 },
   scrollContent: { padding: Spacing.xl },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.xxl,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: Radii.sm,
-    backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center',
-    ...Shadows.sm,
-  },
-  pageTitle: { fontSize: FontSizes.xxl, fontWeight: FontWeights.extrabold, color: Colors.gray800 },
-  pageSubtitle: { fontSize: FontSizes.sm, color: Colors.gray500 },
-  // Stats
-  statsGrid: { gap: Spacing.md, marginBottom: Spacing.xxl },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.xxl },
+  backBtn: { width: 40, height: 40, borderRadius: Radii.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center', ...Shadows.sm },
+  themeBtn: { width: 36, height: 36, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { fontSize: FontSizes.xxl, fontWeight: FontWeights.extrabold },
+  pageSubtitle: { fontSize: FontSizes.sm },
   // Cards
-  cardBox: {
-    ...CardStyle,
-    padding: Spacing.xxl,
-    marginBottom: Spacing.xl,
-  },
-  cardHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  cardTitle: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, color: Colors.gray800 },
-  badgePurple: {
-    backgroundColor: Colors.primary50,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
-    borderRadius: Radii.full,
-  },
-  badgePurpleText: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold, color: Colors.primary600 },
+  cardBox: { borderRadius: Radii.lg, borderWidth: 1, padding: Spacing.xxl, marginBottom: Spacing.xl, ...Shadows.sm },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
+  cardTitle: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
+  badge: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radii.full },
+  badgeText: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold },
+  // Segment Control
+  segmentControl: { flexDirection: 'row', borderRadius: Radii.md, padding: 4, marginBottom: Spacing.lg },
+  segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: Radii.sm },
+  segmentText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
   // Charts
   chartContainer: { alignItems: 'center', paddingTop: Spacing.sm },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.xxl, marginTop: Spacing.lg },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: FontSizes.sm, color: Colors.gray500 },
+  legendText: { fontSize: FontSizes.sm },
   donutContainer: { alignItems: 'center', paddingVertical: Spacing.lg },
   donutCenter: { alignItems: 'center' },
-  donutTotal: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, color: Colors.gray800 },
-  donutLabel: { fontSize: FontSizes.xs, color: Colors.gray500 },
+  donutTotal: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
+  donutLabel: { fontSize: FontSizes.xs },
   categoryLegend: { gap: Spacing.sm },
   categoryItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  categoryName: { flex: 1, fontSize: FontSizes.sm, color: Colors.gray600 },
-  categoryValue: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold, color: Colors.gray800 },
-  // Form
-  formRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end', marginVertical: Spacing.lg, flexWrap: 'wrap' },
-  formField: { flex: 1, minWidth: 100 },
-  formLabel: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold, color: Colors.gray600, marginBottom: 4 },
-  formInput: {
-    backgroundColor: Colors.gray50, borderWidth: 1, borderColor: Colors.gray200,
-    borderRadius: Radii.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    fontSize: FontSizes.sm, color: Colors.gray800,
-  },
-  addBtn: {
-    backgroundColor: Colors.primary500, borderRadius: Radii.sm,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-  },
-  addBtnText: { color: Colors.white, fontWeight: FontWeights.semibold, fontSize: FontSizes.sm },
+  categoryName: { flex: 1, fontSize: FontSizes.sm },
+  categoryValue: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
+  // Stats Grid
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginBottom: Spacing.xl },
+  statMiniCard: { flex: 1, minWidth: 100, borderRadius: Radii.lg, borderWidth: 1, padding: Spacing.lg, alignItems: 'center', gap: 4, ...Shadows.sm },
+  statMiniValue: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
+  statMiniLabel: { fontSize: FontSizes.xs, textAlign: 'center' },
+  deltaText: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold },
+  // Tooltip
+  tooltipBox: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radii.sm, borderWidth: 1, ...Shadows.sm },
+  tooltipText: { fontSize: 10, fontWeight: FontWeights.semibold, lineHeight: 14 },
+  // Search & Filter
+  searchRow: { marginBottom: Spacing.md },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderWidth: 1, borderRadius: Radii.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  searchInput: { flex: 1, fontSize: FontSizes.sm, paddingVertical: 2 },
+  filterRow: { marginBottom: Spacing.lg },
+  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: Radii.full, borderWidth: 1, marginRight: Spacing.sm },
+  filterChipText: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold },
   // Transactions
-  txnRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.gray100,
-  },
-  txnLeft: { flex: 1, gap: 2 },
-  txnDesc: { fontSize: FontSizes.sm, fontWeight: FontWeights.medium, color: Colors.gray800 },
-  txnDate: { fontSize: FontSizes.xs, color: Colors.gray400 },
-  txnRight: { alignItems: 'flex-end', gap: 4 },
-  txnBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radii.full },
-  txnBadgeText: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold },
+  addFab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radii.full, ...Shadows.sm },
+  addFabText: { color: '#FFF', fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
+  emptyState: { paddingVertical: Spacing.xxxl, alignItems: 'center' },
+  emptyText: { fontSize: FontSizes.md },
+  txnGroup: { marginBottom: Spacing.lg },
+  txnGroupDate: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
+  txnRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, borderBottomWidth: 1 },
+  txnIconBox: { width: 36, height: 36, borderRadius: Radii.sm, alignItems: 'center', justifyContent: 'center' },
+  txnInfo: { flex: 1, gap: 2 },
+  txnDesc: { fontSize: FontSizes.sm, fontWeight: FontWeights.medium },
+  txnCategory: { fontSize: FontSizes.xs },
   txnAmount: { fontSize: FontSizes.md, fontWeight: FontWeights.bold },
+  txnActions: { flexDirection: 'row', gap: Spacing.sm },
+  txnActionBtn: { padding: 4 },
   // Pagination
   pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.lg, paddingTop: Spacing.lg },
-  pageBtn: {
-    width: 36, height: 36, borderRadius: Radii.sm, backgroundColor: Colors.gray100,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  pageBtn: { width: 36, height: 36, borderRadius: Radii.sm, alignItems: 'center', justifyContent: 'center' },
   pageBtnDisabled: { opacity: 0.4 },
-  pageInfo: { fontSize: FontSizes.sm, color: Colors.gray500 },
+  pageInfo: { fontSize: FontSizes.sm },
   // Goal
-  goalName: { fontSize: FontSizes.lg, fontWeight: FontWeights.semibold, color: Colors.gray800, marginBottom: 4 },
-  goalMeta: { fontSize: FontSizes.sm, color: Colors.gray500, marginBottom: Spacing.lg },
+  goalName: { fontSize: FontSizes.lg, fontWeight: FontWeights.semibold, marginBottom: 4 },
+  goalMeta: { fontSize: FontSizes.sm, marginBottom: Spacing.lg },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
-  progressValue: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold, color: Colors.gray800 },
-  progressTarget: { fontSize: FontSizes.sm, color: Colors.gray500 },
-  progressTrack: { height: 10, backgroundColor: Colors.gray100, borderRadius: Radii.full, overflow: 'hidden', marginBottom: Spacing.sm },
-  progressFill: { height: '100%', backgroundColor: Colors.primary500, borderRadius: Radii.full },
+  progressValue: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
+  progressTarget: { fontSize: FontSizes.sm },
+  progressTrack: { height: 10, borderRadius: Radii.full, overflow: 'hidden', marginBottom: Spacing.sm },
+  progressFill: { height: '100%', borderRadius: Radii.full },
   // Assets
   assetItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md },
-  assetIcon: { width: 40, height: 40, borderRadius: Radii.sm, backgroundColor: Colors.primary50, alignItems: 'center', justifyContent: 'center' },
+  assetIcon: { width: 40, height: 40, borderRadius: Radii.sm, alignItems: 'center', justifyContent: 'center' },
   assetInfo: { flex: 1 },
-  assetName: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold, color: Colors.gray800 },
-  assetCategory: { fontSize: FontSizes.xs, color: Colors.gray500 },
-  assetValue: { fontSize: FontSizes.md, fontWeight: FontWeights.bold, color: Colors.gray800 },
+  assetName: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
+  assetCategory: { fontSize: FontSizes.xs },
+  assetValue: { fontSize: FontSizes.md, fontWeight: FontWeights.bold },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: Radii.xl, borderTopRightRadius: Radii.xl, padding: Spacing.xxl, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xxl },
+  modalTitle: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
+  modalCloseBtn: { width: 36, height: 36, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
+  formLabel: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold, marginBottom: 6 },
+  formInput: { borderWidth: 1, borderRadius: Radii.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, fontSize: FontSizes.md, marginBottom: Spacing.lg },
+  formInputMultiline: { minHeight: 80, textAlignVertical: 'top' },
+  saveBtn: { borderRadius: Radii.md, paddingVertical: 16, alignItems: 'center', marginTop: Spacing.md, ...Shadows.md },
+  saveBtnText: { color: '#FFF', fontSize: FontSizes.lg, fontWeight: FontWeights.semibold },
+  deleteModalBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, borderWidth: 1, borderRadius: Radii.md, paddingVertical: 14, marginTop: Spacing.md },
+  deleteModalBtnText: { fontSize: FontSizes.md, fontWeight: FontWeights.semibold },
 });

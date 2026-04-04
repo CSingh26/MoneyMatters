@@ -1,107 +1,131 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
-import { BarChart3, ShieldCheck, TrendingUp, FileSearch, ArrowRight, Sparkles, LogOut, Zap } from 'lucide-react-native';
-import { Colors, FontSizes, FontWeights, Spacing, Radii, Shadows, CardStyle } from '../theme';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import { BarChart3, ShieldCheck, TrendingUp, FileSearch, ArrowRight, Sparkles, LogOut, Zap, Sun, Moon } from 'lucide-react-native';
+import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
+import { useTheme } from '../ThemeContext';
 
 export default function HubScreen({ user, onLogout, navigation }) {
+  const { isDark, toggleTheme, colors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.page}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bgPrimary} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logo}>
-            <Sparkles size={20} color={Colors.white} />
-          </View>
-          <Text style={styles.logoText}>PolicyLens AI</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <View style={styles.userBadge}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user?.name?.[0]}</Text>
+    <SafeAreaView style={[styles.page, { backgroundColor: colors.bgPrimary }]}>
+      <StatusBar barStyle={colors.statusBar} backgroundColor={colors.bgPrimary} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={[styles.logo, { backgroundColor: isDark ? colors.primary300 : '#6C5CE7' }]}>
+              <Sparkles size={20} color="#FFFFFF" />
             </View>
-            <Text style={styles.userName}>{user?.name}</Text>
+            <Text style={[styles.logoText, { color: colors.gray800 }]}>PolicyLens AI</Text>
           </View>
-          <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-            <LogOut size={16} color={Colors.primary500} />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: isDark ? colors.gray50 : colors.gray100 }]}>
+              {isDark ? <Sun size={18} color="#FDCB6E" /> : <Moon size={18} color="#6C5CE7" />}
+            </TouchableOpacity>
+            <View style={[styles.userBadge, { backgroundColor: colors.cardBg, borderColor: colors.gray200 }]}>
+              <View style={[styles.avatar, { backgroundColor: isDark ? colors.primary300 : '#6C5CE7' }]}>
+                <Text style={styles.avatarText}>{user?.name?.[0]}</Text>
+              </View>
+              <Text style={[styles.userName, { color: colors.gray700 }]}>{user?.name}</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
+              <LogOut size={16} color={isDark ? colors.primary500 : '#6C5CE7'} />
+              <Text style={[styles.logoutText, { color: isDark ? colors.primary500 : '#6C5CE7' }]}>Logout</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Welcome */}
-      <View style={styles.main}>
+        {/* Welcome */}
         <View style={styles.welcome}>
-          <Text style={styles.welcomeTitle}>
-            Welcome back, <Text style={{ color: Colors.primary500 }}>{user?.name}</Text>.
+          <Text style={[styles.welcomeTitle, { color: colors.gray900 }]}>
+            Welcome back, <Text style={{ color: isDark ? colors.accent : '#FF4081' }}>{user?.name}</Text>.
           </Text>
-          <Text style={styles.welcomeSubtitle}>What would you like to focus on today?</Text>
+          <Text style={[styles.welcomeSubtitle, { color: colors.gray500 }]}>What would you like to focus on today?</Text>
         </View>
+
+        {/* Quick Stats */}
+        <View style={styles.quickStats}>
+          <View style={[styles.quickStatCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.quickStatValue, { color: colors.gray800 }]}>$15,200</Text>
+            <Text style={[styles.quickStatLabel, { color: colors.gray500 }]}>Total Balance</Text>
+          </View>
+          <View style={[styles.quickStatCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.quickStatValue, { color: colors.success }]}>25%</Text>
+            <Text style={[styles.quickStatLabel, { color: colors.gray500 }]}>Savings Rate</Text>
+          </View>
+        </View>
+
+        {/* Section Header */}
+        <Text style={[styles.sectionHeader, { color: colors.gray700 }]}>Your Tools</Text>
 
         {/* Cards */}
         <View style={styles.cards}>
           {/* Financial Tracker */}
           <TouchableOpacity
-            style={styles.featureCard}
+            style={[styles.featureCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('Tracker')}
             activeOpacity={0.7}
-            accessibilityLabel="Open Financial Tracker"
           >
-            <View style={[styles.cardIcon, { backgroundColor: Colors.blue50 }]}>
-              <BarChart3 size={30} color={Colors.blue500} />
-            </View>
-            <Text style={styles.cardTitle}>Financial Tracker</Text>
-            <Text style={styles.cardDesc}>
-              Track expenses, manage budgets, and monitor your financial goals.
-            </Text>
-            <View style={styles.tags}>
-              <View style={styles.tag}>
-                <TrendingUp size={12} color={Colors.gray600} />
-                <Text style={styles.tagText}>Budget & Goals</Text>
+            <View style={[styles.cardGradientStrip, { backgroundColor: isDark ? '#3D5A80' : '#FF4081' }]} />
+            <View style={styles.cardBody}>
+              <View style={[styles.cardIcon, { backgroundColor: isDark ? 'rgba(61,90,128,0.2)' : '#EBF5FF' }]}>
+                <BarChart3 size={28} color={isDark ? '#5A8AC0' : '#3B82F6'} />
               </View>
-              <View style={styles.tag}>
-                <BarChart3 size={12} color={Colors.gray600} />
-                <Text style={styles.tagText}>Charts & Reports</Text>
+              <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Financial Tracker</Text>
+              <Text style={[styles.cardDesc, { color: colors.gray500 }]}>
+                Track expenses, manage budgets, and monitor your financial goals.
+              </Text>
+              <View style={styles.tags}>
+                <View style={[styles.tag, { backgroundColor: colors.gray50 }]}>
+                  <TrendingUp size={12} color={colors.gray600} />
+                  <Text style={[styles.tagText, { color: colors.gray600 }]}>Budget & Goals</Text>
+                </View>
+                <View style={[styles.tag, { backgroundColor: colors.gray50 }]}>
+                  <BarChart3 size={12} color={colors.gray600} />
+                  <Text style={[styles.tagText, { color: colors.gray600 }]}>Charts & Reports</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.cardAction}>
-              <Text style={styles.actionText}>Open Tracker</Text>
-              <ArrowRight size={16} color={Colors.primary500} />
+              <View style={styles.cardAction}>
+                <Text style={[styles.actionText, { color: isDark ? colors.accent : '#FF4081' }]}>Open Tracker</Text>
+                <ArrowRight size={16} color={isDark ? colors.accent : '#FF4081'} />
+              </View>
             </View>
           </TouchableOpacity>
 
           {/* PolicyLens AI */}
           <TouchableOpacity
-            style={styles.featureCard}
+            style={[styles.featureCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('Policy')}
             activeOpacity={0.7}
-            accessibilityLabel="Open PolicyLens AI"
           >
-            <View style={[styles.cardIcon, { backgroundColor: Colors.primary50 }]}>
-              <ShieldCheck size={30} color={Colors.primary500} />
-            </View>
-            <Text style={styles.cardTitle}>PolicyLens AI</Text>
-            <Text style={styles.cardDesc}>
-              Analyze insurance policies, uncover coverage gaps, and simulate 'what-if' financial scenarios.
-            </Text>
-            <View style={styles.tags}>
-              <View style={styles.tag}>
-                <FileSearch size={12} color={Colors.gray600} />
-                <Text style={styles.tagText}>Gap Analysis</Text>
+            <View style={[styles.cardGradientStrip, { backgroundColor: isDark ? '#7B5EA7' : '#AB47BC' }]} />
+            <View style={styles.cardBody}>
+              <View style={[styles.cardIcon, { backgroundColor: isDark ? 'rgba(123,94,167,0.2)' : '#F0EDFF' }]}>
+                <ShieldCheck size={28} color={isDark ? '#9B7BD4' : '#6C5CE7'} />
               </View>
-              <View style={styles.tag}>
-                <Zap size={12} color={Colors.gray600} />
-                <Text style={styles.tagText}>AI Scenarios</Text>
+              <Text style={[styles.cardTitle, { color: colors.gray800 }]}>PolicyLens AI</Text>
+              <Text style={[styles.cardDesc, { color: colors.gray500 }]}>
+                Analyze insurance policies, uncover coverage gaps, and simulate 'what-if' scenarios.
+              </Text>
+              <View style={styles.tags}>
+                <View style={[styles.tag, { backgroundColor: colors.gray50 }]}>
+                  <FileSearch size={12} color={colors.gray600} />
+                  <Text style={[styles.tagText, { color: colors.gray600 }]}>Gap Analysis</Text>
+                </View>
+                <View style={[styles.tag, { backgroundColor: colors.gray50 }]}>
+                  <Zap size={12} color={colors.gray600} />
+                  <Text style={[styles.tagText, { color: colors.gray600 }]}>AI Scenarios</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.cardAction}>
-              <Text style={styles.actionText}>Open PolicyLens</Text>
-              <ArrowRight size={16} color={Colors.primary500} />
+              <View style={styles.cardAction}>
+                <Text style={[styles.actionText, { color: isDark ? colors.accent : '#AB47BC' }]}>Open PolicyLens</Text>
+                <ArrowRight size={16} color={isDark ? colors.accent : '#AB47BC'} />
+              </View>
             </View>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -109,140 +133,172 @@ export default function HubScreen({ user, onLogout, navigation }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: Colors.bgPrimary,
   },
-  // Header
+  scrollContent: {
+    paddingBottom: 40,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xxl,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   logo: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: Radii.sm,
-    backgroundColor: Colors.primary500,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoText: {
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
-    color: Colors.gray800,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Spacing.sm,
+  },
+  themeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   userBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.white,
     borderRadius: Radii.full,
     borderWidth: 1,
-    borderColor: Colors.gray200,
-    paddingVertical: 6,
-    paddingLeft: 6,
-    paddingRight: 14,
+    paddingVertical: 5,
+    paddingLeft: 5,
+    paddingRight: 12,
   },
   avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.primary500,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: Colors.white,
+    color: '#FFFFFF',
     fontWeight: FontWeights.bold,
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs,
   },
   userName: {
-    fontSize: FontSizes.sm,
+    fontSize: FontSizes.xs,
     fontWeight: FontWeights.semibold,
-    color: Colors.gray700,
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
   },
   logoutText: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary500,
+    fontSize: FontSizes.xs,
     fontWeight: FontWeights.medium,
   },
-  // Main
-  main: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xxl,
-    paddingBottom: Spacing.xxxxl,
-  },
+  // Welcome
   welcome: {
-    alignItems: 'center',
-    marginBottom: Spacing.xxxl,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.lg,
   },
   welcomeTitle: {
     fontSize: FontSizes.xxxl,
     fontWeight: FontWeights.extrabold,
-    color: Colors.gray900,
-    textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   welcomeSubtitle: {
     fontSize: FontSizes.lg,
-    color: Colors.gray500,
-    textAlign: 'center',
+  },
+  // Quick Stats
+  quickStats: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.xxl,
+  },
+  quickStatCard: {
+    flex: 1,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    ...Shadows.sm,
+  },
+  quickStatValue: {
+    fontSize: FontSizes.xxl,
+    fontWeight: FontWeights.bold,
+    marginBottom: 4,
+  },
+  quickStatLabel: {
+    fontSize: FontSizes.sm,
+  },
+  // Section header
+  sectionHeader: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   // Cards
   cards: {
+    paddingHorizontal: Spacing.xl,
     gap: Spacing.xl,
   },
   featureCard: {
-    ...CardStyle,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    ...Shadows.sm,
+  },
+  cardGradientStrip: {
+    height: 4,
+  },
+  cardBody: {
     padding: Spacing.xxl,
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   cardIcon: {
-    width: 60,
-    height: 60,
+    width: 56,
+    height: 56,
     borderRadius: Radii.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: Spacing.sm,
   },
   cardTitle: {
     fontSize: FontSizes.xl,
     fontWeight: FontWeights.bold,
-    color: Colors.gray800,
   },
   cardDesc: {
     fontSize: FontSizes.md,
-    color: Colors.gray500,
     lineHeight: 22,
   },
   tags: {
     flexDirection: 'row',
     gap: Spacing.sm,
     flexWrap: 'wrap',
+    marginTop: Spacing.sm,
   },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: Colors.gray50,
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
@@ -250,16 +306,15 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: FontSizes.xs,
     fontWeight: FontWeights.medium,
-    color: Colors.gray600,
   },
   cardAction: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginTop: Spacing.sm,
   },
   actionText: {
     fontSize: FontSizes.md,
     fontWeight: FontWeights.semibold,
-    color: Colors.primary500,
   },
 });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ThemeProvider } from './src/ThemeContext';
 import AuthScreen from './src/screens/AuthScreen';
 import HubScreen from './src/screens/HubScreen';
 import TrackerScreen from './src/screens/TrackerScreen';
@@ -8,7 +9,7 @@ import PolicyScreen from './src/screens/PolicyScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function AppContent() {
   const [user, setUser] = useState(null);
 
   const handleLogin = (userData) => {
@@ -41,5 +42,13 @@ export default function App() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }

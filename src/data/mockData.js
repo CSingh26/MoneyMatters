@@ -15,14 +15,29 @@ export const financialSummary = {
   savingsRate: 25,
 };
 
-// ─── Monthly Income vs Expenses (6 months) ───
+// ─── Monthly Income vs Expenses (12 months) ───
 export const monthlyData = [
+  { month: 'Apr', income: 4600, expenses: 2900 },
+  { month: 'May', income: 4700, expenses: 3050 },
+  { month: 'Jun', income: 4850, expenses: 3200 },
+  { month: 'Jul', income: 4750, expenses: 2800 },
+  { month: 'Aug', income: 4900, expenses: 3100 },
+  { month: 'Sep', income: 5000, expenses: 3300 },
   { month: 'Oct', income: 4800, expenses: 3100 },
   { month: 'Nov', income: 5000, expenses: 3400 },
   { month: 'Dec', income: 5200, expenses: 3800 },
   { month: 'Jan', income: 4900, expenses: 3000 },
   { month: 'Feb', income: 5100, expenses: 3200 },
   { month: 'Mar', income: 5100, expenses: 3250 },
+];
+
+// ─── Yearly Data (5 years) ───
+export const yearlyData = [
+  { year: '2021', income: 48000, expenses: 36000 },
+  { year: '2022', income: 52000, expenses: 38000 },
+  { year: '2023', income: 55000, expenses: 40000 },
+  { year: '2024', income: 58000, expenses: 39000 },
+  { year: '2025', income: 60600, expenses: 38400 },
 ];
 
 // ─── Spending Categories ───

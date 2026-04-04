@@ -1,26 +1,29 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors, FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
-
-const colorMap = {
-  purple: { bg: Colors.primary50, fg: Colors.primary500 },
-  blue: { bg: Colors.blue50, fg: Colors.blue500 },
-  green: { bg: Colors.successLight, fg: Colors.success },
-  orange: { bg: Colors.warningLight, fg: '#D97706' },
-};
+import { View, Text, StyleSheet } from 'react-native';
+import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
+import { useTheme } from '../ThemeContext';
 
 export default function StatCard({ icon: Icon, label, value, trend, trendUp, color = 'purple' }) {
+  const { isDark, colors } = useTheme();
+
+  const colorMap = {
+    purple: { bg: colors.primary50, fg: isDark ? colors.accent : '#6C5CE7' },
+    blue: { bg: colors.blue50, fg: isDark ? colors.blue600 : '#3B82F6' },
+    green: { bg: colors.successLight, fg: colors.success },
+    orange: { bg: colors.warningLight, fg: '#D97706' },
+  };
+
   const scheme = colorMap[color] || colorMap.purple;
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
       <View style={[styles.iconBox, { backgroundColor: scheme.bg }]}>  
         <Icon size={22} color={scheme.fg} />
       </View>
       <View style={styles.content}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{value}</Text>
+        <Text style={[styles.label, { color: colors.gray500 }]}>{label}</Text>
+        <Text style={[styles.value, { color: colors.gray800 }]}>{value}</Text>
         {trend ? (
-          <Text style={[styles.trend, { color: trendUp ? Colors.success : Colors.danger }]}>
+          <Text style={[styles.trend, { color: trendUp ? colors.success : colors.danger }]}>
             {trendUp ? '↑' : '↓'} {trend}
           </Text>
         ) : null}
@@ -36,10 +39,8 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
     paddingVertical: Spacing.xl,
     paddingHorizontal: Spacing.xxl,
-    backgroundColor: Colors.white,
     borderRadius: Radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(108, 92, 231, 0.06)',
     ...Shadows.sm,
   },
   iconBox: {
@@ -56,12 +57,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.medium,
-    color: Colors.gray500,
   },
   value: {
     fontSize: 22,
     fontWeight: FontWeights.bold,
-    color: Colors.gray800,
   },
   trend: {
     fontSize: FontSizes.xs,

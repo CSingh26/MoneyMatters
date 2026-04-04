@@ -1,68 +1,60 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal as RNModal, ScrollView } from 'react-native';
 import { X, CheckCircle2, AlertTriangle } from 'lucide-react-native';
-import { Colors, FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
+import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
+import { useTheme } from '../ThemeContext';
 
 export default function PolicyModal({ visible, policy, onClose }) {
+  const { isDark, colors } = useTheme();
   if (!policy) return null;
 
   return (
-    <RNModal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <RNModal visible={visible} animationType="fade" transparent onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>{policy.name}</Text>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} accessibilityLabel="Close modal">
-              <X size={20} color={Colors.gray500} />
+        <View style={[styles.content, { backgroundColor: colors.cardBg }]}>
+          <View style={[styles.header, { borderBottomColor: colors.gray100 }]}>
+            <Text style={[styles.title, { color: colors.gray800 }]}>{policy.name}</Text>
+            <TouchableOpacity style={[styles.closeBtn, { backgroundColor: colors.gray100 }]} onPress={onClose}>
+              <X size={20} color={colors.gray500} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-            {/* Meta */}
             <View style={styles.metaRow}>
-              <View style={[styles.badge, { backgroundColor: Colors.primary50 }]}>
-                <Text style={[styles.badgeText, { color: Colors.primary600 }]}>{policy.provider}</Text>
+              <View style={[styles.badge, { backgroundColor: colors.primary50 }]}>
+                <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>{policy.provider}</Text>
               </View>
-              <View style={[styles.badge, { backgroundColor: policy.scoreColor === 'green' ? Colors.successLight : Colors.warningLight }]}>
+              <View style={[styles.badge, { backgroundColor: policy.scoreColor === 'green' ? colors.successLight : colors.warningLight }]}>
                 <Text style={[styles.badgeText, { color: policy.scoreColor === 'green' ? '#059669' : '#D97706' }]}>{policy.coverageScore}</Text>
               </View>
             </View>
 
-            <Text style={styles.metaText}>
+            <Text style={[styles.metaText, { color: colors.gray500 }]}>
               Premium: ${policy.premium}/{policy.premiumFrequency} · Expires: {policy.expiresAt}
             </Text>
 
-            {/* Covered */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <CheckCircle2 size={16} color={Colors.success} />
-                <Text style={[styles.sectionTitle, { color: Colors.success }]}>What's Covered</Text>
+              <View style={[styles.sectionHeader, { borderBottomColor: colors.gray100 }]}>
+                <CheckCircle2 size={16} color={colors.success} />
+                <Text style={[styles.sectionTitle, { color: colors.success }]}>What's Covered</Text>
               </View>
               {policy.covered.map((item, i) => (
                 <View key={i} style={styles.listItem}>
-                  <CheckCircle2 size={14} color={Colors.success} />
-                  <Text style={styles.listText}>{item}</Text>
+                  <CheckCircle2 size={14} color={colors.success} />
+                  <Text style={[styles.listText, { color: colors.gray700 }]}>{item}</Text>
                 </View>
               ))}
             </View>
 
-            {/* Excluded */}
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <AlertTriangle size={16} color={Colors.warning} />
-                <Text style={[styles.sectionTitle, { color: Colors.warning }]}>What's Excluded</Text>
+              <View style={[styles.sectionHeader, { borderBottomColor: colors.gray100 }]}>
+                <AlertTriangle size={16} color={colors.warning} />
+                <Text style={[styles.sectionTitle, { color: colors.warning }]}>What's Excluded</Text>
               </View>
               {policy.excluded.map((item, i) => (
                 <View key={i} style={styles.listItem}>
-                  <AlertTriangle size={14} color={Colors.danger} />
-                  <Text style={styles.listText}>{item}</Text>
+                  <AlertTriangle size={14} color={colors.danger} />
+                  <Text style={[styles.listText, { color: colors.gray700 }]}>{item}</Text>
                 </View>
               ))}
             </View>
@@ -82,7 +74,6 @@ const styles = StyleSheet.create({
     padding: Spacing.xxl,
   },
   content: {
-    backgroundColor: Colors.white,
     borderRadius: Radii.xl,
     width: '100%',
     maxHeight: '80%',
@@ -96,18 +87,15 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xxl,
     paddingBottom: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
   },
   title: {
     fontSize: FontSizes.lg,
     fontWeight: FontWeights.bold,
-    color: Colors.gray800,
     flex: 1,
   },
   closeBtn: {
     width: 36,
     height: 36,
-    backgroundColor: Colors.gray100,
     borderRadius: Radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -132,7 +120,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: FontSizes.sm,
-    color: Colors.gray500,
     marginBottom: Spacing.xl,
   },
   section: {
@@ -145,7 +132,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.gray100,
   },
   sectionTitle: {
     fontSize: FontSizes.md,
@@ -160,7 +146,6 @@ const styles = StyleSheet.create({
   listText: {
     flex: 1,
     fontSize: FontSizes.sm,
-    color: Colors.gray700,
     lineHeight: 20,
   },
 });

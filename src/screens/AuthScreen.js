@@ -6,9 +6,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff, Shield } from 'lucide-react-native';
 import { Colors, FontSizes, FontWeights, Spacing, Radii, Shadows, InputStyle } from '../theme';
+import { useTheme } from '../ThemeContext';
 import { userData } from '../data/mockData';
 
 export default function AuthScreen({ onLogin }) {
+  const { isDark, colors } = useTheme();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,7 +25,7 @@ export default function AuthScreen({ onLogin }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.page}
+      style={[styles.page, { backgroundColor: colors.bgPrimary }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -31,17 +33,17 @@ export default function AuthScreen({ onLogin }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
           {/* Brand Panel */}
           <LinearGradient
-            colors={[Colors.gray900, '#2A2063', Colors.primary700]}
+            colors={isDark ? ['#1A1A2E', '#2A2063', '#7B5EA7'] : [Colors.gray900, '#2A2063', Colors.primary700]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.brandPanel}
           >
             <View>
               <View style={styles.brandLogo}>
-                <Sparkles size={28} color={Colors.white} />
+                <Sparkles size={28} color="#fff" />
               </View>
               <Text style={styles.brandTitle}>PolicyLens AI</Text>
               <Text style={styles.brandSubtitle}>
@@ -61,37 +63,37 @@ export default function AuthScreen({ onLogin }) {
 
           {/* Form Panel */}
           <View style={styles.formPanel}>
-            <Text style={styles.formTitle}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
-            <Text style={styles.formSubtitle}>
+            <Text style={[styles.formTitle, { color: colors.gray800 }]}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+            <Text style={[styles.formSubtitle, { color: colors.gray500 }]}>
               {isSignUp ? 'Start your journey to smarter finances' : 'Sign in to your PolicyLens account'}
             </Text>
 
             {/* Toggle */}
-            <View style={styles.toggle}>
+            <View style={[styles.toggle, { backgroundColor: colors.gray100 }]}>
               <TouchableOpacity
-                style={[styles.toggleBtn, !isSignUp && styles.toggleBtnActive]}
+                style={[styles.toggleBtn, !isSignUp && [styles.toggleBtnActive, { backgroundColor: colors.cardBg }]]}
                 onPress={() => setIsSignUp(false)}
               >
-                <Text style={[styles.toggleText, !isSignUp && styles.toggleTextActive]}>Sign In</Text>
+                <Text style={[styles.toggleText, { color: colors.gray500 }, !isSignUp && { color: colors.primary600 }]}>Sign In</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.toggleBtn, isSignUp && styles.toggleBtnActive]}
+                style={[styles.toggleBtn, isSignUp && [styles.toggleBtnActive, { backgroundColor: colors.cardBg }]]}
                 onPress={() => setIsSignUp(true)}
               >
-                <Text style={[styles.toggleText, isSignUp && styles.toggleTextActive]}>Create Account</Text>
+                <Text style={[styles.toggleText, { color: colors.gray500 }, isSignUp && { color: colors.primary600 }]}>Create Account</Text>
               </TouchableOpacity>
             </View>
 
             {/* Form Fields */}
             {isSignUp && (
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Full Name</Text>
-                <View style={styles.inputWithIcon}>
-                  <User size={18} color={Colors.gray400} style={styles.inputIcon} />
+                <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Full Name</Text>
+                <View style={[styles.inputWithIcon, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+                  <User size={18} color={colors.gray400} style={styles.inputIcon} />
                   <TextInput
-                    style={[styles.input, styles.inputPadded]}
+                    style={[styles.input, styles.inputPadded, { color: colors.gray800 }]}
                     placeholder="Enter your name"
-                    placeholderTextColor={Colors.gray400}
+                    placeholderTextColor={colors.gray400}
                     value={formData.name}
                     onChangeText={(t) => setFormData({ ...formData, name: t })}
                   />
@@ -100,13 +102,13 @@ export default function AuthScreen({ onLogin }) {
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
-              <View style={styles.inputWithIcon}>
-                <Mail size={18} color={Colors.gray400} style={styles.inputIcon} />
+              <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Email Address</Text>
+              <View style={[styles.inputWithIcon, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+                <Mail size={18} color={colors.gray400} style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, styles.inputPadded]}
+                  style={[styles.input, styles.inputPadded, { color: colors.gray800 }]}
                   placeholder="you@example.com"
-                  placeholderTextColor={Colors.gray400}
+                  placeholderTextColor={colors.gray400}
                   value={formData.email}
                   onChangeText={(t) => setFormData({ ...formData, email: t })}
                   keyboardType="email-address"
@@ -116,13 +118,13 @@ export default function AuthScreen({ onLogin }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputWithIcon}>
-                <Lock size={18} color={Colors.gray400} style={styles.inputIcon} />
+              <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Password</Text>
+              <View style={[styles.inputWithIcon, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+                <Lock size={18} color={colors.gray400} style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, styles.inputPadded, { flex: 1 }]}
+                  style={[styles.input, styles.inputPadded, { flex: 1, color: colors.gray800 }]}
                   placeholder="Enter your password"
-                  placeholderTextColor={Colors.gray400}
+                  placeholderTextColor={colors.gray400}
                   value={formData.password}
                   onChangeText={(t) => setFormData({ ...formData, password: t })}
                   secureTextEntry={!showPassword}
@@ -133,25 +135,25 @@ export default function AuthScreen({ onLogin }) {
                   accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
-                    <EyeOff size={18} color={Colors.gray400} />
+                    <EyeOff size={18} color={colors.gray400} />
                   ) : (
-                    <Eye size={18} color={Colors.gray400} />
+                    <Eye size={18} color={colors.gray400} />
                   )}
                 </TouchableOpacity>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary500 }]} onPress={handleSubmit} activeOpacity={0.8}>
               <Text style={styles.submitText}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
-              <ArrowRight size={18} color={Colors.white} />
+              <ArrowRight size={18} color="#fff" />
             </TouchableOpacity>
 
             <View style={styles.switchRow}>
-              <Text style={styles.switchText}>
+              <Text style={[styles.switchText, { color: colors.gray500 }]}>
                 {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
               </Text>
               <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
-                <Text style={styles.switchLink}>{isSignUp ? 'Sign in' : 'Create one'}</Text>
+                <Text style={[styles.switchLink, { color: colors.primary500 }]}>{isSignUp ? 'Sign in' : 'Create one'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -164,7 +166,6 @@ export default function AuthScreen({ onLogin }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: Colors.bgPrimary,
   },
   scrollContent: {
     flexGrow: 1,
@@ -172,7 +173,6 @@ const styles = StyleSheet.create({
     padding: Spacing.xxl,
   },
   card: {
-    backgroundColor: Colors.white,
     borderRadius: Radii.xl,
     overflow: 'hidden',
     ...Shadows.lg,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: FontSizes.xxl,
     fontWeight: FontWeights.extrabold,
-    color: Colors.white,
+    color: '#fff',
     marginBottom: Spacing.sm,
   },
   brandSubtitle: {
@@ -229,18 +229,15 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: FontSizes.xxl,
     fontWeight: FontWeights.bold,
-    color: Colors.gray800,
     marginBottom: Spacing.xs,
   },
   formSubtitle: {
     fontSize: FontSizes.md,
-    color: Colors.gray500,
     marginBottom: Spacing.xxl,
   },
   // Toggle
   toggle: {
     flexDirection: 'row',
-    backgroundColor: Colors.gray100,
     borderRadius: Radii.md,
     padding: 4,
     marginBottom: Spacing.xxl,
@@ -252,16 +249,11 @@ const styles = StyleSheet.create({
     borderRadius: Radii.sm,
   },
   toggleBtnActive: {
-    backgroundColor: Colors.white,
     ...Shadows.sm,
   },
   toggleText: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.semibold,
-    color: Colors.gray500,
-  },
-  toggleTextActive: {
-    color: Colors.primary600,
   },
   // Inputs
   inputGroup: {
@@ -270,15 +262,12 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.semibold,
-    color: Colors.gray600,
     marginBottom: 6,
   },
   inputWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.gray50,
     borderWidth: 1.5,
-    borderColor: Colors.gray200,
     borderRadius: Radii.md,
     paddingHorizontal: Spacing.lg,
   },
@@ -289,7 +278,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: Spacing.md,
     fontSize: FontSizes.md,
-    color: Colors.gray800,
   },
   inputPadded: {},
   eyeBtn: {
@@ -297,7 +285,6 @@ const styles = StyleSheet.create({
   },
   // Submit
   submitBtn: {
-    backgroundColor: Colors.primary500,
     borderRadius: Radii.md,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -310,7 +297,7 @@ const styles = StyleSheet.create({
   submitText: {
     fontSize: FontSizes.lg,
     fontWeight: FontWeights.semibold,
-    color: Colors.white,
+    color: '#fff',
   },
   // Switch
   switchRow: {
@@ -320,11 +307,9 @@ const styles = StyleSheet.create({
   },
   switchText: {
     fontSize: FontSizes.sm,
-    color: Colors.gray500,
   },
   switchLink: {
     fontSize: FontSizes.sm,
     fontWeight: FontWeights.semibold,
-    color: Colors.primary500,
   },
 });
