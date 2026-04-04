@@ -42,6 +42,24 @@ model PolicyGap {
   @@index([policyId])
 }
 
-enum PolicyType  { auto  home  renters  health  life }
-enum ParseStatus { pending  processing  done  failed }
-enum GapSeverity { low  medium  high  critical }
+enum PolicyType {
+  auto
+  home
+  renters
+  health
+  life
+}
+
+enum ParseStatus {
+  pending
+  processing
+  done
+  failed
+}
+
+enum GapSeverity {
+  low
+  medium
+  high
+  critical
+}

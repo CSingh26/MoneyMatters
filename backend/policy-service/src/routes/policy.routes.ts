@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate } from '../../shared/middleware/auth';
+import { authenticate } from '../../../shared/middleware/auth';
 import { upload } from '../services/upload.service';
 import { uploadHandler, getHandler, listHandler, deleteHandler } from '../controllers/policy.controller';
 

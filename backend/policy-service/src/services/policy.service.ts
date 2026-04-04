@@ -2,7 +2,7 @@ import axios from 'axios';
 import { createPolicy, findPolicyById, findPoliciesByUser, updatePolicy, deletePolicy } from '../models/policy.model';
 import { extractTextFromPdf } from '../utils/pdf.utils';
 import { deleteFile } from './upload.service';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../../shared/utils/logger';
 import type { PolicyType, ParseStatus } from '@prisma/client';
 
 const AI_SERVICE_URL = () => process.env.AI_SERVICE_URL ?? 'http://localhost:3004';
