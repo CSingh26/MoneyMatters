@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../../shared/utils/logger';
 
 const AUTH_URL = () => process.env.AUTH_SERVICE_URL ?? 'http://localhost:3001';
 const FINANCE_URL = () => process.env.FINANCE_SERVICE_URL ?? 'http://localhost:3002';

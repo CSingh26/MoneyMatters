@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '../../shared/types';
-import { sendSuccess, sendError } from '../../shared/utils/response';
+import { AuthenticatedRequest } from '../../../shared/types';
+import { sendSuccess, sendError } from '../../../shared/utils/response';
 import { aggregateDashboard } from '../services/aggregator.service';
 
 export async function dashboardHandler(req: AuthenticatedRequest, res: Response, next: NextFunction) {
