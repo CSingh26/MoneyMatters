@@ -9,7 +9,7 @@ import {
 } from '../models/user.model';
 import { generateTokenPair, rotateRefreshToken, revokeTokensForUser } from './token.service';
 import type { RegisterInput, LoginInput, UpdateProfileInput } from '../validators/auth.validator';
-import type { Gender } from '@prisma/client';
+import type { Gender } from '../generated/prisma/client.js';
 
 const SALT_ROUNDS = 12;
 

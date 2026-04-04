@@ -1,6 +1,8 @@
-import { PrismaClient, Gender } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient, Gender } from '../generated/prisma/client.js';
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 
 export interface CreateUserData {
   email: string;

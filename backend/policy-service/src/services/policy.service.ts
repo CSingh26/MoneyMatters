@@ -3,7 +3,7 @@ import { createPolicy, findPolicyById, findPoliciesByUser, updatePolicy, deleteP
 import { extractTextFromPdf } from '../utils/pdf.utils';
 import { deleteFile } from './upload.service';
 import { logger } from '../../../shared/utils/logger';
-import type { PolicyType, ParseStatus } from '@prisma/client';
+import type { PolicyType, ParseStatus } from '../generated/prisma/client.js';
 
 const AI_SERVICE_URL = () => process.env.AI_SERVICE_URL ?? 'http://localhost:3004';
 const AI_KEY = () => process.env.AI_SERVICE_INTERNAL_KEY ?? process.env.INTERNAL_SERVICE_KEY ?? '';

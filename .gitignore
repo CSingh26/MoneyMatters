@@ -27,6 +27,7 @@ npm-debug.log*
 
 # Prisma
 **/prisma/migrations/dev.db
+**/src/generated/
 
 # Uploads (policy-service)
 backend/policy-service/uploads/
