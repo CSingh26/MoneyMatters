@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Policy {
+  id            String       @id @default(uuid())
+  userId        String       @map("user_id")
+  type          PolicyType
+  originalName  String       @map("original_name")
+  storagePath   String       @map("storage_path")
+  storageDriver String       @map("storage_driver")
+  fileSizeBytes Int          @map("file_size_bytes")
+  parseStatus   ParseStatus  @default(pending) @map("parse_status")
+  parsedData    Json?        @map("parsed_data")
+  coverageScore String?      @map("coverage_score")
+  renewalDate   DateTime?    @map("renewal_date")
+  parseError    String?      @map("parse_error")
+  parsedAt      DateTime?    @map("parsed_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  gaps          PolicyGap[]
+
+  @@map("policy_documents")
+  @@index([userId])
+}
+
+model PolicyGap {
+  id             String      @id @default(uuid())
+  policyId       String      @map("policy_id")
+  description    String
+  severity       GapSeverity
+  recommendation String
+  createdAt      DateTime    @default(now()) @map("created_at")
+  policy         Policy      @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@map("policy_gaps")
+  @@index([policyId])
+}
+
+enum PolicyType  { auto  home  renters  health  life }
+enum ParseStatus { pending  processing  done  failed }
+enum GapSeverity { low  medium  high  critical }
