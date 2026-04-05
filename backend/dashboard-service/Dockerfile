@@ -11,8 +11,6 @@ RUN cd dashboard-service && npm install
 COPY shared/ ./shared/
 COPY dashboard-service/ ./dashboard-service/
 
-RUN cd dashboard-service && npx tsc
-
 FROM node:20-slim
 
 WORKDIR /app
@@ -24,4 +22,4 @@ WORKDIR /app/dashboard-service
 
 EXPOSE 3005
 
-CMD ["node", "dist/index.js"]
+CMD ["npx", "tsx", "src/index.ts"]
