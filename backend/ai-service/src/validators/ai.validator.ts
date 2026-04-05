@@ -14,8 +14,8 @@ export const watchdogRequestSchema = z.object({
 
 export const scenarioRequestSchema = z.object({
   query: z.string().min(1).max(500),
-  scenarioType: z.enum(['income_shock', 'medical', 'policy_change', 'property']),
-  financialData: z.record(z.unknown()),
+  scenarioType: z.enum(['income_shock', 'medical', 'policy_change', 'property']).default('income_shock'),
+  financialData: z.record(z.unknown()).default({}),
   policyData: z.record(z.unknown()).optional(),
 });
 
