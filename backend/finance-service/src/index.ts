@@ -8,6 +8,7 @@ import { logger } from '../../shared/utils/logger';
 import financeRoutes from './routes/finance.routes';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT) || 3002;
 
 // Global middleware

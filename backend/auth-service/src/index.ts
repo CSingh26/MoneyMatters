@@ -8,6 +8,7 @@ import { logger } from '../../shared/utils/logger';
 import authRoutes from './routes/auth.routes';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT) || 3001;
 
 // Global middleware

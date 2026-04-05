@@ -1,6 +1,7 @@
 import { apiFetch } from './client';
 
 const BASE = process.env.EXPO_PUBLIC_POLICY_API || 'http://localhost:3003';
+const AI_BASE = process.env.EXPO_PUBLIC_AI_API || 'http://localhost:3004';
 
 export async function uploadPolicy(file, type, renewalDate) {
   const formData = new FormData();
@@ -36,12 +37,12 @@ export async function deletePolicy(id) {
 }
 
 export async function runWatchdog() {
-  const json = await apiFetch(BASE, '/api/policies/watchdog', { method: 'POST' });
+  const json = await apiFetch(AI_BASE, '/api/ai/watchdog', { method: 'POST' });
   return json.data;
 }
 
 export async function runScenario(query) {
-  const json = await apiFetch(BASE, '/api/policies/scenario', {
+  const json = await apiFetch(AI_BASE, '/api/ai/scenario', {
     method: 'POST',
     body: JSON.stringify({ query }),
   });
@@ -49,11 +50,11 @@ export async function runScenario(query) {
 }
 
 export async function listScenarios() {
-  const json = await apiFetch(BASE, '/api/policies/scenarios');
+  const json = await apiFetch(AI_BASE, '/api/ai/scenarios');
   return json.data;
 }
 
 export async function getScenario(id) {
-  const json = await apiFetch(BASE, `/api/policies/scenario/${id}`);
+  const json = await apiFetch(AI_BASE, `/api/ai/scenario/${id}`);
   return json.data;
 }

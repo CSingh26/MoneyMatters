@@ -8,6 +8,7 @@ import { logger } from '../../shared/utils/logger';
 import dashboardRoutes from './routes/dashboard.routes';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT) || 3005;
 
 // Global middleware

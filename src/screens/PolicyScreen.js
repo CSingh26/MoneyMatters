@@ -16,6 +16,18 @@ import { uploadPolicy, listPolicies, runScenario } from '../api/policy';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 
+const normalizePolicy = (p) => ({
+  ...p,
+  name: p.originalName || p.name,
+  provider: p.parsedData?.provider || 'Unknown',
+  premium: p.parsedData?.premium || 0,
+  premiumFrequency: p.parsedData?.premiumFrequency || 'monthly',
+  covered: p.parsedData?.covered || [],
+  excluded: p.parsedData?.excluded || [],
+  expiresAt: p.renewalDate ? new Date(p.renewalDate).toLocaleDateString() : 'N/A',
+  scoreColor: p.coverageScore === 'Well Covered' ? 'green' : p.coverageScore ? 'orange' : 'gray',
+});
+
 export default function PolicyScreen({ user, navigation }) {
   const { isDark, toggleTheme, colors } = useTheme();
   const [selectedPolicy, setSelectedPolicy] = useState(null);
@@ -38,7 +50,7 @@ export default function PolicyScreen({ user, navigation }) {
       try {
         const apiPolicies = await listPolicies();
         if (apiPolicies && apiPolicies.length > 0) {
-          setPolicies(apiPolicies);
+          setPolicies(apiPolicies.map(normalizePolicy));
         }
       } catch {
         // API unavailable — policies remain empty
@@ -58,7 +70,7 @@ export default function PolicyScreen({ user, navigation }) {
           Alert.alert('Success', 'Policy uploaded! AI parsing will begin shortly.');
           // Refresh policies list
           const updated = await listPolicies();
-          if (updated && updated.length > 0) setPolicies(updated);
+          if (updated && updated.length > 0) setPolicies(updated.map(normalizePolicy));
         } catch (err) {
           Alert.alert('Upload Failed', err.message || 'Could not upload policy');
         } finally {
