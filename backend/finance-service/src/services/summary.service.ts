@@ -1,5 +1,5 @@
 import { decrypt } from '../../../shared/utils/crypto';
-import { findProfileByUserId, updateHealthScore } from '../models/finance.model';
+import { findOrCreateProfile, updateHealthScore } from '../models/finance.model';
 
 const encKey = () => process.env.ENCRYPTION_KEY!;
 
@@ -21,8 +21,7 @@ export interface FinanceSummary {
 }
 
 export async function getSummary(userId: string): Promise<FinanceSummary> {
-  const profile = await findProfileByUserId(userId);
-  if (!profile) throw Object.assign(new Error('Finance profile not found'), { status: 404 });
+  const profile = await findOrCreateProfile(userId);
 
   const totalMonthlyIncome = profile.incomeItems.reduce(
     (sum, i) => sum + Number(i.monthlyAmount), 0);
