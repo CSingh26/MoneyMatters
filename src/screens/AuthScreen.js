@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image,
   KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator, Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -199,9 +199,7 @@ export default function AuthScreen() {
             style={styles.brandPanel}
           >
             <View>
-              <View style={styles.brandLogo}>
-                <Sparkles size={28} color="#fff" />
-              </View>
+              <Image source={require('../../assets/synaxis-logo-1024.png')} style={styles.brandLogo} />
               <Text style={styles.brandTitle}>Synaxis</Text>
               <Text style={styles.brandSubtitle}>
                 {isSignUp && step === 2
@@ -470,9 +468,6 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: Radii.md,
-    backgroundColor: 'rgba(108, 92, 231, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: Spacing.xl,
   },
   brandTitle: {

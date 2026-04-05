@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
-import { LayoutDashboard, BarChart3, ShieldCheck, LogOut, Sparkles } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image } from 'react-native';
+import { LayoutDashboard, BarChart3, ShieldCheck, LogOut } from 'lucide-react-native';
 import { Colors, FontSizes, FontWeights, Spacing, Radii } from '../theme';
 
 export default function Sidebar({ user, onLogout, navigation, activePage }) {
@@ -14,9 +14,7 @@ export default function Sidebar({ user, onLogout, navigation, activePage }) {
     <SafeAreaView style={styles.sidebar}>
       {/* Brand */}
       <View style={styles.brand}>
-        <View style={styles.logo}>
-          <Sparkles size={20} color={Colors.white} />
-        </View>
+        <Image source={require('../../assets/synaxis-logo-1024.png')} style={styles.logo} />
         <Text style={styles.brandTitle}>Synaxis</Text>
       </View>
 
@@ -79,9 +77,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radii.sm,
-    backgroundColor: Colors.primary500,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   brandTitle: {
     fontSize: FontSizes.xl,

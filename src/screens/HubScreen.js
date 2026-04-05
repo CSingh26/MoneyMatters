@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, ActivityIndicator } from 'react-native';
-import { BarChart3, ShieldCheck, TrendingUp, FileSearch, ArrowRight, Sparkles, LogOut, Zap, Sun, Moon } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { BarChart3, ShieldCheck, TrendingUp, FileSearch, ArrowRight, LogOut, Zap, Sun, Moon } from 'lucide-react-native';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 import { getFinanceSummary } from '../api/finance';
@@ -29,9 +29,7 @@ export default function HubScreen({ user, onLogout, navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={[styles.logo, { backgroundColor: isDark ? colors.primary300 : '#6C5CE7' }]}>
-              <Sparkles size={20} color="#FFFFFF" />
-            </View>
+            <Image source={require('../../assets/synaxis-logo-1024.png')} style={styles.logo} />
             <Text style={[styles.logoText, { color: colors.gray800 }]}>Synaxis</Text>
           </View>
           <View style={styles.headerRight}>
@@ -172,8 +170,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: Radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   logoText: {
     fontSize: FontSizes.lg,
