@@ -12,7 +12,13 @@ const PORT = Number(process.env.PORT) || 3005;
 
 // Global middleware
 app.use(helmet());
-app.use(cors());
+const corsOrigins = process.env.CORS_ORIGINS?.split(',') || ['*'];
+app.use(cors({
+  origin: corsOrigins.includes('*') ? true : corsOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(createRateLimiter());
 
