@@ -1,0 +1,33 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+
+# Environment files
+.env
+**/.env
+
+# OS files
+**/.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/
+
+# Confidential documents
+docs/private_docs/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Prisma
+**/prisma/migrations/dev.db
+**/src/generated/
+
+# Uploads (policy-service)
+backend/policy-service/uploads/

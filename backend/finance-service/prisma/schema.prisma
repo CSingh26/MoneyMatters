@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model FinanceProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  healthScore Int?     @map("health_score")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  incomeItems       FinanceIncomeItem[]
+  fixedItems        FinanceFixedExpenditure[]
+  variableItems     FinanceVariableExpenditure[]
+  savingsItems      FinanceSavingsItem[]
+  goals             FinanceGoal[]
+
+  @@map("finance_profiles")
+  @@index([userId])
+}
+
+model FinanceIncomeItem {
+  id              String          @id @default(uuid())
+  profileId       String          @map("profile_id")
+  name            String
+  amountEnc       String          @map("amount_enc")
+  frequency       IncomeFrequency
+  monthlyAmount   Decimal         @map("monthly_amount")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  profile         FinanceProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("finance_income_items")
+  @@index([profileId])
+}
+
+model FinanceFixedExpenditure {
+  id            String           @id @default(uuid())
+  profileId     String           @map("profile_id")
+  name          String
+  category      FixedCategory
+  amountEnc     String           @map("amount_enc")
+  frequency     ExpenseFrequency
+  monthlyAmount Decimal          @map("monthly_amount")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  profile       FinanceProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("finance_fixed_expenditures")
+  @@index([profileId])
+}
+
+model FinanceVariableExpenditure {
+  id                 String           @id @default(uuid())
+  profileId          String           @map("profile_id")
+  name               String
+  category           VariableCategory
+  estimatedMonthlyEnc String          @map("estimated_monthly_enc")
+  estimatedMonthly   Decimal          @map("estimated_monthly")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  profile            FinanceProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("finance_variable_expenditures")
+  @@index([profileId])
+}
+
+model FinanceSavingsItem {
+  id                    String        @id @default(uuid())
+  profileId             String        @map("profile_id")
+  type                  SavingsType
+  description           String?
+  currentBalanceEnc     String        @map("current_balance_enc")
+  currentBalance        Decimal       @map("current_balance")
+  monthlySavingsEnc     String        @map("monthly_savings_enc")
+  monthlySavings        Decimal       @map("monthly_savings")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+  profile               FinanceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("finance_savings_items")
+  @@index([profileId])
+}
+
+model FinanceGoal {
+  id          String        @id @default(uuid())
+  profileId   String        @map("profile_id")
+  name        String
+  targetEnc   String        @map("target_enc")
+  target      Decimal
+  currentEnc  String        @map("current_enc")
+  current     Decimal       @default(0)
+  deadline    DateTime?
+  status      GoalStatus    @default(active)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  profile     FinanceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("finance_goals")
+  @@index([profileId])
+}
+
+enum IncomeFrequency {
+  monthly
+  biweekly
+}
+
+enum ExpenseFrequency {
+  monthly
+  biweekly
+  annual
+}
+
+enum FixedCategory {
+  mortgage
+  rent
+  car_loan
+  student_loan
+  personal_loan
+  utilities
+  insurance
+  subscriptions
+  other
+}
+
+enum VariableCategory {
+  gas
+  food_groceries
+  dining_out
+  shopping
+  entertainment
+  healthcare
+  transport
+  misc
+}
+
+enum SavingsType {
+  liquid_savings
+  stocks
+  index_funds
+  retirement_401k
+  ira
+  locked_cd
+  crypto
+  other
+}
+
+enum GoalStatus {
+  active
+  completed
+  paused
+}
