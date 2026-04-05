@@ -13,7 +13,7 @@ RUN cd ai-service && npm install
 COPY shared/ ./shared/
 COPY ai-service/ ./ai-service/
 
-RUN cd ai-service && npx prisma generate
+RUN cd ai-service && DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 FROM node:20-slim
 

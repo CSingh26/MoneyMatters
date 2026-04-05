@@ -16,8 +16,8 @@ RUN cd auth-service && npm install
 COPY shared/ ./shared/
 COPY auth-service/ ./auth-service/
 
-# Generate Prisma client
-RUN cd auth-service && npx prisma generate
+# Generate Prisma client (dummy URL - only needed for client generation, not connection)
+RUN cd auth-service && DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 # --- Production stage ---
 FROM node:20-slim

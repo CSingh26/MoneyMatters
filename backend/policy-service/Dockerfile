@@ -13,7 +13,7 @@ RUN cd policy-service && npm install
 COPY shared/ ./shared/
 COPY policy-service/ ./policy-service/
 
-RUN cd policy-service && npx prisma generate
+RUN cd policy-service && DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 FROM node:20-slim
 

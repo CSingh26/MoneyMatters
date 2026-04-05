@@ -13,7 +13,7 @@ RUN cd finance-service && npm install
 COPY shared/ ./shared/
 COPY finance-service/ ./finance-service/
 
-RUN cd finance-service && npx prisma generate
+RUN cd finance-service && DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 FROM node:20-slim
 
