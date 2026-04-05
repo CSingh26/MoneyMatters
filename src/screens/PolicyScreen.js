@@ -1,18 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, Dimensions,
-  Alert, ActivityIndicator,
+  Alert, ActivityIndicator, Modal,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { BarChart } from 'react-native-gifted-charts';
 import {
   Upload, Shield, AlertTriangle, CheckCircle2, Info, Send, Bot, User as UserIcon,
   ChevronDown, ChevronUp, Sparkles, ArrowRight, ArrowLeft, Zap, Sun, Moon,
+  Trash2, Edit3, Plus, X,
 } from 'lucide-react-native';
 import PolicyModal from '../components/PolicyModal';
 import EmptyState from '../components/EmptyState';
-import { uploadPolicy, listPolicies, runScenario } from '../api/policy';
+import { uploadPolicy, listPolicies, deletePolicy, runScenario } from '../api/policy';
+import { listAssets, addAsset, updateAsset, deleteAsset } from '../api/finance';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 
@@ -28,6 +30,21 @@ const normalizePolicy = (p) => ({
   scoreColor: p.coverageScore === 'Well Covered' ? 'green' : p.coverageScore ? 'orange' : 'gray',
 });
 
+const ASSET_TYPES = [
+  { value: 'real_estate', label: 'Real Estate' },
+  { value: 'vehicle', label: 'Vehicle' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'jewelry', label: 'Jewelry' },
+  { value: 'collectibles', label: 'Collectibles' },
+  { value: 'furniture', label: 'Furniture' },
+  { value: 'other', label: 'Other' },
+];
+
+const assetIcons = {
+  real_estate: '🏠', vehicle: '🚗', electronics: '💻', jewelry: '💎',
+  collectibles: '🎨', furniture: '🪑', other: '📦',
+};
+
 export default function PolicyScreen({ user, navigation }) {
   const { isDark, toggleTheme, colors } = useTheme();
   const [selectedPolicy, setSelectedPolicy] = useState(null);
@@ -40,23 +57,101 @@ export default function PolicyScreen({ user, navigation }) {
   const [expandedGaps, setExpandedGaps] = useState({});
   const scrollRef = useRef(null);
 
-  // Gap analysis and assets — populated from policy API when available
-  const gapAnalysis = [];
-  const assets = [];
+  // Assets state + CRUD
+  const [assets, setAssets] = useState([]);
+  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [editingAsset, setEditingAsset] = useState(null);
+  const [assetForm, setAssetForm] = useState({ name: '', type: 'other', estimatedValue: '', description: '' });
 
-  // Load policies from API on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const apiPolicies = await listPolicies();
-        if (apiPolicies && apiPolicies.length > 0) {
-          setPolicies(apiPolicies.map(normalizePolicy));
-        }
-      } catch {
-        // API unavailable — policies remain empty
+  // Gap analysis — populated from policy API when available
+  const gapAnalysis = [];
+
+  // Load policies + assets from API on mount
+  const loadData = useCallback(async () => {
+    try {
+      const [apiPolicies, assetItems] = await Promise.all([
+        listPolicies().catch(() => []),
+        listAssets().catch(() => []),
+      ]);
+      if (apiPolicies && apiPolicies.length > 0) {
+        setPolicies(apiPolicies.map(normalizePolicy));
       }
-    })();
+      setAssets((assetItems || []).map(a => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        value: parseFloat(a.estimatedValue || 0),
+        description: a.description || '',
+      })));
+    } catch {
+      // API unavailable
+    }
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Policy delete
+  const handleDeletePolicy = (policy) => {
+    Alert.alert('Delete Policy', `Are you sure you want to delete "${policy.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await deletePolicy(policy.id);
+          await loadData();
+        } catch (err) {
+          Alert.alert('Error', err.message || 'Failed to delete policy');
+        }
+      }},
+    ]);
+  };
+
+  // Asset CRUD
+  const resetAssetForm = () => {
+    setAssetForm({ name: '', type: 'other', estimatedValue: '', description: '' });
+    setEditingAsset(null);
+  };
+
+  const handleSaveAsset = async () => {
+    if (!assetForm.name || !assetForm.estimatedValue) return;
+    try {
+      const payload = {
+        name: assetForm.name,
+        type: assetForm.type,
+        estimatedValue: parseFloat(assetForm.estimatedValue),
+        description: assetForm.description || undefined,
+      };
+      if (editingAsset) {
+        await updateAsset(editingAsset.id, payload);
+      } else {
+        await addAsset(payload);
+      }
+      await loadData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save asset');
+    }
+    setShowAssetModal(false);
+    resetAssetForm();
+  };
+
+  const handleEditAsset = (asset) => {
+    setEditingAsset(asset);
+    setAssetForm({ name: asset.name, type: asset.type, estimatedValue: String(asset.value), description: asset.description || '' });
+    setShowAssetModal(true);
+  };
+
+  const handleDeleteAsset = (asset) => {
+    Alert.alert('Delete Asset', `Are you sure you want to delete "${asset.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await deleteAsset(asset.id);
+          await loadData();
+        } catch (err) {
+          Alert.alert('Error', err.message || 'Failed to delete asset');
+        }
+      }},
+    ]);
+  };
 
   const handleFilePick = async () => {
     try {
@@ -69,8 +164,7 @@ export default function PolicyScreen({ user, navigation }) {
           await uploadPolicy(file, 'auto', null);
           Alert.alert('Success', 'Policy uploaded! AI parsing will begin shortly.');
           // Refresh policies list
-          const updated = await listPolicies();
-          if (updated && updated.length > 0) setPolicies(updated.map(normalizePolicy));
+          await loadData();
         } catch (err) {
           Alert.alert('Upload Failed', err.message || 'Could not upload policy');
         } finally {
@@ -181,7 +275,17 @@ export default function PolicyScreen({ user, navigation }) {
 
           {/* Active Policies */}
           <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Active Policies</Text>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitle, { color: colors.gray800, marginBottom: 0 }]}>Active Policies</Text>
+              <TouchableOpacity
+                style={[styles.addFab, { backgroundColor: isDark ? colors.accent : '#6C5CE7' }]}
+                onPress={handleFilePick}
+                disabled={uploading}
+              >
+                <Plus size={16} color="#FFF" />
+                <Text style={styles.addFabText}>Upload</Text>
+              </TouchableOpacity>
+            </View>
             {policies.length > 0 ? (
               <View style={styles.policiesGrid}>
                 {policies.map((policy) => (
@@ -190,10 +294,15 @@ export default function PolicyScreen({ user, navigation }) {
                       <View style={[styles.policyIcon, { backgroundColor: colors.primary50 }]}>
                         <Shield size={18} color={isDark ? colors.accent : '#6C5CE7'} />
                       </View>
-                      <View style={[styles.scoreBadge, { backgroundColor: policy.scoreColor === 'green' ? colors.successLight : colors.warningLight }]}>
-                        <Text style={[styles.scoreBadgeText, { color: policy.scoreColor === 'green' ? '#059669' : '#D97706' }]}>
-                          {policy.coverageScore}
-                        </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={[styles.scoreBadge, { backgroundColor: policy.scoreColor === 'green' ? colors.successLight : colors.warningLight }]}>
+                          <Text style={[styles.scoreBadgeText, { color: policy.scoreColor === 'green' ? '#059669' : '#D97706' }]}>
+                            {policy.coverageScore}
+                          </Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleDeletePolicy(policy)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Trash2 size={16} color={colors.danger || '#DC2626'} />
+                        </TouchableOpacity>
                       </View>
                     </View>
                     <Text style={[styles.policyName, { color: colors.gray800 }]}>{policy.name}</Text>
@@ -201,12 +310,57 @@ export default function PolicyScreen({ user, navigation }) {
                     <TouchableOpacity style={styles.viewSummaryBtn} onPress={() => setSelectedPolicy(policy)}>
                       <Text style={[styles.viewSummaryText, { color: isDark ? colors.accent : '#6C5CE7' }]}>View Summary</Text>
                       <ArrowRight size={14} color={isDark ? colors.accent : '#6C5CE7'} />
-                  </TouchableOpacity>
-                </View>
-              ))}
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
             ) : (
               <EmptyState icon={Shield} title="No policies yet" message="Upload a policy document to get started with coverage analysis" />
+            )}
+          </View>
+
+          {/* ═══ YOUR ASSETS (FULL CRUD) ═══ */}
+          <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitle, { color: colors.gray800, marginBottom: 0 }]}>Your Assets</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {assets.length > 0 && (
+                  <View style={[styles.badgePurple, { backgroundColor: colors.primary50 }]}>
+                    <Text style={[styles.badgePurpleText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>${totalAssetValue.toLocaleString()}</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[styles.addFab, { backgroundColor: isDark ? colors.accent : '#6C5CE7' }]}
+                  onPress={() => { resetAssetForm(); setShowAssetModal(true); }}
+                >
+                  <Plus size={16} color="#FFF" />
+                  <Text style={styles.addFabText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {assets.length > 0 ? (
+              assets.map(asset => (
+                <View key={asset.id} style={[styles.assetRow, { borderBottomColor: colors.gray100 }]}>
+                  <View style={[styles.assetIconBox, { backgroundColor: colors.primary50 }]}>
+                    <Text style={{ fontSize: 18 }}>{assetIcons[asset.type] || '📦'}</Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[styles.assetName, { color: colors.gray800 }]}>{asset.name}</Text>
+                    <Text style={[styles.assetType, { color: colors.gray500 }]}>{(ASSET_TYPES.find(t => t.value === asset.type) || {}).label || 'Other'}</Text>
+                  </View>
+                  <Text style={[styles.assetValue, { color: colors.gray800 }]}>${asset.value.toLocaleString()}</Text>
+                  <View style={styles.assetActions}>
+                    <TouchableOpacity onPress={() => handleEditAsset(asset)} style={styles.actionBtn}>
+                      <Edit3 size={14} color={colors.gray400} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteAsset(asset)} style={styles.actionBtn}>
+                      <Trash2 size={14} color={colors.danger || '#DC2626'} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <EmptyState icon={Shield} title="No assets tracked" message="Tap 'Add' to start tracking your assets for gap analysis" />
             )}
           </View>
 
@@ -438,6 +592,75 @@ export default function PolicyScreen({ user, navigation }) {
       </KeyboardAvoidingView>
 
       <PolicyModal visible={!!selectedPolicy} policy={selectedPolicy} onClose={() => setSelectedPolicy(null)} />
+
+      {/* ═══ ADD/EDIT ASSET MODAL ═══ */}
+      <Modal visible={showAssetModal} animationType="slide" transparent onRequestClose={() => setShowAssetModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.cardBg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.gray800 }]}>{editingAsset ? 'Edit Asset' : 'Add Asset'}</Text>
+              <TouchableOpacity onPress={() => { setShowAssetModal(false); resetAssetForm(); }} style={[styles.modalCloseBtn, { backgroundColor: colors.gray100 }]}>
+                <X size={18} color={colors.gray500} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Name</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="e.g., Honda Civic 2022"
+                placeholderTextColor={colors.gray400}
+                value={assetForm.name}
+                onChangeText={t => setAssetForm(f => ({ ...f, name: t }))}
+              />
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Type</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.lg }}>
+                {ASSET_TYPES.map(at => (
+                  <TouchableOpacity
+                    key={at.value}
+                    style={[styles.filterChip, {
+                      backgroundColor: assetForm.type === at.value ? (isDark ? colors.accent : '#6C5CE7') : colors.gray50,
+                      borderColor: assetForm.type === at.value ? (isDark ? colors.accent : '#6C5CE7') : colors.gray200,
+                    }]}
+                    onPress={() => setAssetForm(f => ({ ...f, type: at.value }))}
+                  >
+                    <Text style={[styles.filterChipText, { color: assetForm.type === at.value ? '#FFF' : colors.gray600 }]}>{at.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Estimated Value ($)</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="0.00"
+                placeholderTextColor={colors.gray400}
+                value={assetForm.estimatedValue}
+                onChangeText={t => setAssetForm(f => ({ ...f, estimatedValue: t }))}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Description (optional)</Text>
+              <TextInput
+                style={[styles.formInput, styles.formInputMultiline, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="Add details..."
+                placeholderTextColor={colors.gray400}
+                value={assetForm.description}
+                onChangeText={t => setAssetForm(f => ({ ...f, description: t }))}
+                multiline
+              />
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: isDark ? colors.accent : '#6C5CE7' }]} onPress={handleSaveAsset}>
+                <Text style={styles.saveBtnText}>{editingAsset ? 'Save Changes' : 'Add Asset'}</Text>
+              </TouchableOpacity>
+              {editingAsset && (
+                <TouchableOpacity
+                  style={[styles.deleteModalBtn, { borderColor: colors.danger || '#DC2626' }]}
+                  onPress={() => { setShowAssetModal(false); handleDeleteAsset(editingAsset); resetAssetForm(); }}
+                >
+                  <Trash2 size={16} color={colors.danger || '#DC2626'} />
+                  <Text style={[styles.deleteModalBtnText, { color: colors.danger || '#DC2626' }]}>Delete Asset</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -545,4 +768,29 @@ const styles = StyleSheet.create({
     width: 46, height: 46, borderRadius: Radii.md, alignItems: 'center', justifyContent: 'center', ...Shadows.sm,
   },
   sendBtnDisabled: { opacity: 0.4 },
+  // Assets
+  assetRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, borderBottomWidth: 1 },
+  assetIconBox: { width: 40, height: 40, borderRadius: Radii.sm, alignItems: 'center', justifyContent: 'center' },
+  assetName: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
+  assetType: { fontSize: FontSizes.xs },
+  assetValue: { fontSize: FontSizes.md, fontWeight: FontWeights.bold },
+  assetActions: { flexDirection: 'row', gap: Spacing.sm },
+  actionBtn: { padding: 4 },
+  addFab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radii.full, ...Shadows.sm },
+  addFabText: { color: '#FFF', fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: Radii.xl, borderTopRightRadius: Radii.xl, padding: Spacing.xxl, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xxl },
+  modalTitle: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
+  modalCloseBtn: { width: 36, height: 36, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
+  formLabel: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold, marginBottom: 6 },
+  formInput: { borderWidth: 1, borderRadius: Radii.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, fontSize: FontSizes.md, marginBottom: Spacing.lg },
+  formInputMultiline: { minHeight: 80, textAlignVertical: 'top' },
+  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: Radii.full, borderWidth: 1, marginRight: Spacing.sm },
+  filterChipText: { fontSize: FontSizes.xs, fontWeight: FontWeights.semibold },
+  saveBtn: { borderRadius: Radii.md, paddingVertical: 16, alignItems: 'center', marginTop: Spacing.md, ...Shadows.md },
+  saveBtnText: { color: '#FFF', fontSize: FontSizes.lg, fontWeight: FontWeights.semibold },
+  deleteModalBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, borderWidth: 1, borderRadius: Radii.md, paddingVertical: 14, marginTop: Spacing.md },
+  deleteModalBtnText: { fontSize: FontSizes.md, fontWeight: FontWeights.semibold },
 });

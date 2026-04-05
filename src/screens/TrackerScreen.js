@@ -803,12 +803,12 @@ export default function TrackerScreen({ user, navigation }) {
         {/* ═══ SAVINGS ITEMS (FULL CRUD) ═══ */}
         <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Savings & Investments</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.cardTitle, { color: colors.gray800, flex: 1 }]} numberOfLines={1}>Savings & Investments</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               {savingsItems.length > 0 && (
                 <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
                   <Text style={[styles.badgeText, { color: '#059669' }]}>
-                    ${savingsItems.reduce((s, i) => s + i.currentBalance, 0).toLocaleString()} total
+                    ${savingsItems.reduce((s, i) => s + i.currentBalance, 0).toLocaleString()}
                   </Text>
                 </View>
               )}
@@ -928,12 +928,12 @@ export default function TrackerScreen({ user, navigation }) {
         {/* Assets */}
         <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Your Assets</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.cardTitle, { color: colors.gray800, flex: 1 }]} numberOfLines={1}>Your Assets</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               {assets.length > 0 && (
                 <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
                   <Text style={[styles.badgeText, { color: '#059669' }]}>
-                    ${assets.reduce((s, a) => s + a.value, 0).toLocaleString()} total
+                    ${assets.reduce((s, a) => s + a.value, 0).toLocaleString()}
                   </Text>
                 </View>
               )}
