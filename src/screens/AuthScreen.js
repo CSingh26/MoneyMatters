@@ -1,30 +1,65 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView,
+  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Sparkles, Mail, Lock, User, ArrowRight, Eye, EyeOff, Shield, Calendar, Users } from 'lucide-react-native';
 import { Colors, FontSizes, FontWeights, Spacing, Radii, Shadows, InputStyle } from '../theme';
 import { useTheme } from '../ThemeContext';
-import { userData } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
-export default function AuthScreen({ onLogin }) {
+export default function AuthScreen() {
   const { isDark, colors } = useTheme();
+  const { login, register } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: userData.name,
-    email: userData.email,
-    password: userData.password,
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
     age: '',
     gender: '',
   });
 
-  const genderOptions = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
+  const genderOptions = [
+    { label: 'Male', value: 'male' },
+    { label: 'Female', value: 'female' },
+    { label: 'Non-binary', value: 'non_binary' },
+    { label: 'Prefer not to say', value: 'prefer_not_to_say' },
+  ];
 
-  const handleSubmit = () => {
-    onLogin({ name: formData.name, email: formData.email, age: formData.age, gender: formData.gender });
+  const handleSubmit = async () => {
+    if (!formData.email || !formData.password) {
+      Alert.alert('Error', 'Email and password are required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (isSignUp) {
+        if (!formData.firstName || !formData.lastName || !formData.age || !formData.gender) {
+          Alert.alert('Error', 'All fields are required for sign up');
+          setSubmitting(false);
+          return;
+        }
+        await register({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          age: parseInt(formData.age, 10),
+          gender: formData.gender,
+        });
+      } else {
+        await login({ email: formData.email, password: formData.password });
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Something went wrong');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -91,15 +126,31 @@ export default function AuthScreen({ onLogin }) {
             {/* Form Fields */}
             {isSignUp && (
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Full Name</Text>
+                <Text style={[styles.inputLabel, { color: colors.gray600 }]}>First Name</Text>
                 <View style={[styles.inputWithIcon, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
                   <User size={18} color={colors.gray400} style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, styles.inputPadded, { color: colors.gray800 }]}
-                    placeholder="Enter your name"
+                    placeholder="Enter your first name"
                     placeholderTextColor={colors.gray400}
-                    value={formData.name}
-                    onChangeText={(t) => setFormData({ ...formData, name: t })}
+                    value={formData.firstName}
+                    onChangeText={(t) => setFormData({ ...formData, firstName: t })}
+                  />
+                </View>
+              </View>
+            )}
+
+            {isSignUp && (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Last Name</Text>
+                <View style={[styles.inputWithIcon, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+                  <User size={18} color={colors.gray400} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, styles.inputPadded, { color: colors.gray800 }]}
+                    placeholder="Enter your last name"
+                    placeholderTextColor={colors.gray400}
+                    value={formData.lastName}
+                    onChangeText={(t) => setFormData({ ...formData, lastName: t })}
                   />
                 </View>
               </View>
@@ -129,11 +180,11 @@ export default function AuthScreen({ onLogin }) {
                 <View style={styles.genderRow}>
                   {genderOptions.map((g) => (
                     <TouchableOpacity
-                      key={g}
-                      style={[styles.genderChip, { backgroundColor: formData.gender === g ? (isDark ? colors.accent : colors.primary500) : colors.gray50, borderColor: formData.gender === g ? 'transparent' : colors.gray200 }]}
-                      onPress={() => setFormData({ ...formData, gender: g })}
+                      key={g.value}
+                      style={[styles.genderChip, { backgroundColor: formData.gender === g.value ? (isDark ? colors.accent : colors.primary500) : colors.gray50, borderColor: formData.gender === g.value ? 'transparent' : colors.gray200 }]}
+                      onPress={() => setFormData({ ...formData, gender: g.value })}
                     >
-                      <Text style={[styles.genderChipText, { color: formData.gender === g ? '#fff' : colors.gray600 }]}>{g}</Text>
+                      <Text style={[styles.genderChipText, { color: formData.gender === g.value ? '#fff' : colors.gray600 }]}>{g.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -182,9 +233,15 @@ export default function AuthScreen({ onLogin }) {
               </View>
             </View>
 
-            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary500 }]} onPress={handleSubmit} activeOpacity={0.8}>
-              <Text style={styles.submitText}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
-              <ArrowRight size={18} color="#fff" />
+            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary500 }]} onPress={handleSubmit} activeOpacity={0.8} disabled={submitting}>
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.submitText}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
+                  <ArrowRight size={18} color="#fff" />
+                </>
+              )}
             </TouchableOpacity>
 
             <View style={styles.switchRow}>

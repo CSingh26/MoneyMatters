@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   SafeAreaView, StatusBar, KeyboardAvoidingView, Platform, Dimensions,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { BarChart } from 'react-native-gifted-charts';
@@ -10,7 +11,8 @@ import {
   ChevronDown, ChevronUp, Sparkles, ArrowRight, ArrowLeft, Zap, Sun, Moon,
 } from 'lucide-react-native';
 import PolicyModal from '../components/PolicyModal';
-import { policies, gapAnalysis, assets, getScenarioResponse } from '../data/mockData';
+import { policies as mockPolicies, gapAnalysis, assets, getScenarioResponse } from '../data/mockData';
+import { uploadPolicy, listPolicies, runScenario } from '../api/policy';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 
@@ -18,33 +20,69 @@ export default function PolicyScreen({ user, navigation }) {
   const { isDark, toggleTheme, colors } = useTheme();
   const [selectedPolicy, setSelectedPolicy] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [policies, setPolicies] = useState(mockPolicies);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [expandedGaps, setExpandedGaps] = useState({});
   const scrollRef = useRef(null);
 
+  // Load policies from API on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const apiPolicies = await listPolicies();
+        if (apiPolicies && apiPolicies.length > 0) {
+          setPolicies(apiPolicies);
+        }
+      } catch {
+        // Keep mock policies if API call fails
+      }
+    })();
+  }, []);
+
   const handleFilePick = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
       if (!result.canceled && result.assets?.[0]) {
-        setUploadedFile(result.assets[0].name);
+        const file = result.assets[0];
+        setUploadedFile(file.name);
+        setUploading(true);
+        try {
+          await uploadPolicy(file, 'auto', null);
+          Alert.alert('Success', 'Policy uploaded! AI parsing will begin shortly.');
+          // Refresh policies list
+          const updated = await listPolicies();
+          if (updated && updated.length > 0) setPolicies(updated);
+        } catch (err) {
+          Alert.alert('Upload Failed', err.message || 'Could not upload policy');
+        } finally {
+          setUploading(false);
+        }
       }
     } catch (e) {}
   };
 
-  const handleChatSubmit = () => {
+  const handleChatSubmit = async () => {
     if (!chatInput.trim()) return;
     const userMsg = { role: 'user', content: chatInput };
     setChatMessages((prev) => [...prev, userMsg]);
     const query = chatInput;
     setChatInput('');
     setIsTyping(true);
-    setTimeout(() => {
+
+    try {
+      const result = await runScenario(query);
+      // API returns scenario data — use it
+      setChatMessages((prev) => [...prev, { role: 'assistant', scenario: result }]);
+    } catch {
+      // Fallback to mock
       const scenario = getScenarioResponse(query);
       setChatMessages((prev) => [...prev, { role: 'assistant', scenario }]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const toggleGap = (idx) => setExpandedGaps((p) => ({ ...p, [idx]: !p[idx] }));
@@ -84,8 +122,15 @@ export default function PolicyScreen({ user, navigation }) {
               style={[styles.uploadZone, { borderColor: uploadedFile ? colors.success : colors.gray300, backgroundColor: uploadedFile ? colors.successLight : colors.gray50 }]}
               onPress={handleFilePick}
               activeOpacity={0.7}
+              disabled={uploading}
             >
-              {uploadedFile ? (
+              {uploading ? (
+                <View style={styles.uploadSuccess}>
+                  <ActivityIndicator size="large" color={isDark ? colors.accent : '#6C5CE7'} />
+                  <Text style={[styles.uploadFilename, { color: colors.gray800 }]}>{uploadedFile}</Text>
+                  <Text style={[styles.uploadHint, { color: colors.gray500 }]}>Uploading...</Text>
+                </View>
+              ) : uploadedFile ? (
                 <View style={styles.uploadSuccess}>
                   <CheckCircle2 size={36} color={colors.success} />
                   <Text style={[styles.uploadFilename, { color: colors.gray800 }]}>{uploadedFile}</Text>

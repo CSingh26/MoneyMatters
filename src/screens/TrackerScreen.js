@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   SafeAreaView, StatusBar, Modal, Alert, Animated, Dimensions,
@@ -12,9 +12,10 @@ import {
 } from 'lucide-react-native';
 import StatCard from '../components/StatCard';
 import {
-  financialSummary, monthlyData, yearlyData, spendingByCategory,
-  transactions as mockTransactions, assets, savingsGoal,
+  financialSummary as mockSummary, monthlyData, yearlyData, spendingByCategory,
+  transactions as mockTransactions, assets, savingsGoal as mockSavingsGoal,
 } from '../data/mockData';
+import { getFinanceSummary } from '../api/finance';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 
@@ -38,10 +39,39 @@ export default function TrackerScreen({ user, navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [tooltipData, setTooltipData] = useState(null);
+  const [financialSummary, setFinancialSummary] = useState(mockSummary);
+  const [savingsGoal, setSavingsGoal] = useState(mockSavingsGoal);
   const [formData, setFormData] = useState({
     type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0],
     description: '', note: '',
   });
+
+  // Load financial summary from API
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getFinanceSummary();
+        setFinancialSummary({
+          totalBalance: data.totalSavingsBalance,
+          monthlyIncome: data.totalMonthlyIncome,
+          monthlyExpenses: data.totalMonthlyExpenses,
+          savingsRate: data.savingsRate,
+        });
+        // Use first goal from API if available
+        if (data.goals && data.goals.length > 0) {
+          const goal = data.goals[0];
+          setSavingsGoal({
+            name: goal.name,
+            target: goal.target,
+            current: goal.current,
+            deadline: goal.deadline,
+          });
+        }
+      } catch {
+        // Keep mock data as fallback
+      }
+    })();
+  }, []);
 
   const resetForm = () => {
     setFormData({ type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0], description: '', note: '' });

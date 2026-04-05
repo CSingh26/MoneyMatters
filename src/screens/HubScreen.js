@@ -1,11 +1,26 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, ActivityIndicator } from 'react-native';
 import { BarChart3, ShieldCheck, TrendingUp, FileSearch, ArrowRight, Sparkles, LogOut, Zap, Sun, Moon } from 'lucide-react-native';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
+import { getFinanceSummary } from '../api/finance';
 
 export default function HubScreen({ user, onLogout, navigation }) {
   const { isDark, toggleTheme, colors } = useTheme();
+  const [summary, setSummary] = useState(null);
+
+  const displayName = user?.firstName || 'User';
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getFinanceSummary();
+        setSummary(data);
+      } catch {
+        // Finance profile may not exist yet
+      }
+    })();
+  }, []);
 
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: colors.bgPrimary }]}>
@@ -25,9 +40,9 @@ export default function HubScreen({ user, onLogout, navigation }) {
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={[styles.userBadge, { backgroundColor: colors.cardBg, borderColor: colors.gray200 }]}>
               <View style={[styles.avatar, { backgroundColor: isDark ? colors.primary300 : '#6C5CE7' }]}>
-                <Text style={styles.avatarText}>{user?.name?.[0]}</Text>
+                <Text style={styles.avatarText}>{displayName[0]}</Text>
               </View>
-              <Text style={[styles.userName, { color: colors.gray700 }]}>{user?.name}</Text>
+              <Text style={[styles.userName, { color: colors.gray700 }]}>{displayName}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
               <LogOut size={16} color={isDark ? colors.primary500 : '#6C5CE7'} />
@@ -39,7 +54,7 @@ export default function HubScreen({ user, onLogout, navigation }) {
         {/* Welcome */}
         <View style={styles.welcome}>
           <Text style={[styles.welcomeTitle, { color: colors.gray900 }]}>
-            Welcome back, <Text style={{ color: isDark ? colors.accent : '#FF4081' }}>{user?.name}</Text>.
+            Welcome back, <Text style={{ color: isDark ? colors.accent : '#FF4081' }}>{displayName}</Text>.
           </Text>
           <Text style={[styles.welcomeSubtitle, { color: colors.gray500 }]}>What would you like to focus on today?</Text>
         </View>
@@ -47,11 +62,15 @@ export default function HubScreen({ user, onLogout, navigation }) {
         {/* Quick Stats */}
         <View style={styles.quickStats}>
           <View style={[styles.quickStatCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.quickStatValue, { color: colors.gray800 }]}>$15,200</Text>
-            <Text style={[styles.quickStatLabel, { color: colors.gray500 }]}>Total Balance</Text>
+            <Text style={[styles.quickStatValue, { color: colors.gray800 }]}>
+              ${summary ? summary.totalSavingsBalance.toLocaleString() : '—'}
+            </Text>
+            <Text style={[styles.quickStatLabel, { color: colors.gray500 }]}>Savings Balance</Text>
           </View>
           <View style={[styles.quickStatCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.quickStatValue, { color: colors.success }]}>25%</Text>
+            <Text style={[styles.quickStatValue, { color: colors.success }]}>
+              {summary ? `${summary.savingsRate}%` : '—'}
+            </Text>
             <Text style={[styles.quickStatLabel, { color: colors.gray500 }]}>Savings Rate</Text>
           </View>
         </View>
