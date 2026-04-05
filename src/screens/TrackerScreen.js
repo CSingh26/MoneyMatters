@@ -15,14 +15,23 @@ import EmptyState from '../components/EmptyState';
 import {
   getFinanceSummary, listIncome, addIncome, updateIncome, deleteIncome,
   listVariableExpenses, addVariableExpense, updateVariableExpense, deleteVariableExpense,
-  listFixedExpenses,
+  listFixedExpenses, listAssets, addAsset, updateAsset, deleteAsset,
 } from '../api/finance';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const assetIcons = { car: Car, piggyBank: PiggyBank, laptop: Laptop, trendingUp: TrendingUp, home: Home };
+const assetIcons = { car: Car, piggyBank: PiggyBank, laptop: Laptop, trendingUp: TrendingUp, home: Home, real_estate: Home, vehicle: Car, electronics: Laptop, jewelry: Heart, collectibles: Briefcase, furniture: ShoppingBag, other: Wallet };
+const ASSET_TYPES = [
+  { value: 'real_estate', label: 'Real Estate' },
+  { value: 'vehicle', label: 'Vehicle' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'jewelry', label: 'Jewelry' },
+  { value: 'collectibles', label: 'Collectibles' },
+  { value: 'furniture', label: 'Furniture' },
+  { value: 'other', label: 'Other' },
+];
 const categoryIcons = {
   Food: Coffee, Transport: Car, Shopping: ShoppingBag, Mortgage: Home,
   Insurance: Heart, Loan: CreditCard, Salary: DollarSign, Freelance: Briefcase,
@@ -95,7 +104,10 @@ export default function TrackerScreen({ user, navigation }) {
     return Object.entries(cats).map(([name, value]) => ({ name, value: Math.round(value), color: catColors[name] || '#999' }));
   }, [allTransactions]);
 
-  const assets = [];
+  const [assets, setAssets] = useState([]);
+  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [editingAsset, setEditingAsset] = useState(null);
+  const [assetForm, setAssetForm] = useState({ name: '', type: 'other', estimatedValue: '', description: '' });
   const [formData, setFormData] = useState({
     type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0],
     description: '', note: '',
@@ -104,11 +116,12 @@ export default function TrackerScreen({ user, navigation }) {
   // Load all financial data from backend
   const loadAllData = useCallback(async () => {
     try {
-      const [incomeItems, variableItems, fixedItems, summaryData] = await Promise.all([
+      const [incomeItems, variableItems, fixedItems, summaryData, assetItems] = await Promise.all([
         listIncome().catch(() => []),
         listVariableExpenses().catch(() => []),
         listFixedExpenses().catch(() => []),
         getFinanceSummary().catch(() => null),
+        listAssets().catch(() => []),
       ]);
 
       // Normalize income items → transactions
@@ -149,6 +162,18 @@ export default function TrackerScreen({ user, navigation }) {
       }));
 
       setAllTransactions([...incomeTxns, ...expenseTxns, ...fixedTxns].sort((a, b) => b.date.localeCompare(a.date)));
+
+      // Load assets
+      setAssets((assetItems || []).map(a => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        value: parseFloat(a.estimatedValue || 0),
+        description: a.description || '',
+        purchaseDate: a.purchaseDate,
+        icon: a.type,
+        category: (ASSET_TYPES.find(t => t.value === a.type) || {}).label || 'Other',
+      })));
 
       if (summaryData) {
         setFinancialSummary({
@@ -277,6 +302,54 @@ export default function TrackerScreen({ user, navigation }) {
   const goalProgress = savingsGoal
     ? ((savingsGoal.current / savingsGoal.target) * 100).toFixed(0)
     : 0;
+
+  // ── Asset CRUD ──
+  const resetAssetForm = () => {
+    setAssetForm({ name: '', type: 'other', estimatedValue: '', description: '' });
+    setEditingAsset(null);
+  };
+
+  const handleSaveAsset = async () => {
+    if (!assetForm.name || !assetForm.estimatedValue) return;
+    try {
+      const payload = {
+        name: assetForm.name,
+        type: assetForm.type,
+        estimatedValue: parseFloat(assetForm.estimatedValue),
+        description: assetForm.description || undefined,
+      };
+      if (editingAsset) {
+        await updateAsset(editingAsset.id, payload);
+      } else {
+        await addAsset(payload);
+      }
+      await loadAllData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save asset');
+    }
+    setShowAssetModal(false);
+    resetAssetForm();
+  };
+
+  const handleEditAsset = (asset) => {
+    setEditingAsset(asset);
+    setAssetForm({ name: asset.name, type: asset.type, estimatedValue: String(asset.value), description: asset.description || '' });
+    setShowAssetModal(true);
+  };
+
+  const handleDeleteAsset = (asset) => {
+    Alert.alert('Delete Asset', `Are you sure you want to delete "${asset.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await deleteAsset(asset.id);
+          await loadAllData();
+        } catch (err) {
+          Alert.alert('Error', err.message || 'Failed to delete');
+        }
+      }},
+    ]);
+  };
 
   // Trend chart data
   const trendChartData = useMemo(() => {
@@ -725,13 +798,22 @@ export default function TrackerScreen({ user, navigation }) {
         <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Your Assets</Text>
-            {assets.length > 0 && (
-              <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
-                <Text style={[styles.badgeText, { color: '#059669' }]}>
-                  ${assets.reduce((s, a) => s + a.value, 0).toLocaleString()} total
-                </Text>
-              </View>
-            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {assets.length > 0 && (
+                <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
+                  <Text style={[styles.badgeText, { color: '#059669' }]}>
+                    ${assets.reduce((s, a) => s + a.value, 0).toLocaleString()} total
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={[styles.addFab, { backgroundColor: accentColor }]}
+                onPress={() => { resetAssetForm(); setShowAssetModal(true); }}
+              >
+                <Plus size={16} color="#FFF" />
+                <Text style={styles.addFabText}>Add</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           {assets.length > 0 ? (
             assets.map(asset => {
@@ -746,11 +828,19 @@ export default function TrackerScreen({ user, navigation }) {
                     <Text style={[styles.assetCategory, { color: colors.gray500 }]}>{asset.category}</Text>
                   </View>
                   <Text style={[styles.assetValue, { color: colors.gray800 }]}>${asset.value.toLocaleString()}</Text>
+                  <View style={styles.txnActions}>
+                    <TouchableOpacity onPress={() => handleEditAsset(asset)} style={styles.txnActionBtn}>
+                      <Edit3 size={14} color={colors.gray400} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteAsset(asset)} style={styles.txnActionBtn}>
+                      <Trash2 size={14} color={colors.danger} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               );
             })
           ) : (
-            <EmptyState icon={Wallet} title="No assets tracked" message="Your tracked assets will appear here" />
+            <EmptyState icon={Wallet} title="No assets tracked" message="Tap 'Add' to start tracking your assets" />
           )}
         </View>
 
@@ -854,6 +944,74 @@ export default function TrackerScreen({ user, navigation }) {
                 >
                   <Trash2 size={16} color={colors.danger} />
                   <Text style={[styles.deleteModalBtnText, { color: colors.danger }]}>Delete Transaction</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      {/* ═══ ADD/EDIT ASSET MODAL ═══ */}
+      <Modal visible={showAssetModal} animationType="slide" transparent onRequestClose={() => setShowAssetModal(false)}>
+        <View style={[styles.modalOverlay]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.cardBg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.gray800 }]}>{editingAsset ? 'Edit Asset' : 'Add Asset'}</Text>
+              <TouchableOpacity onPress={() => { setShowAssetModal(false); resetAssetForm(); }} style={[styles.modalCloseBtn, { backgroundColor: colors.gray100 }]}>
+                <X size={18} color={colors.gray500} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Name</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="e.g., Honda Civic 2022"
+                placeholderTextColor={colors.gray400}
+                value={assetForm.name}
+                onChangeText={t => setAssetForm(f => ({ ...f, name: t }))}
+              />
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Type</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.lg }}>
+                {ASSET_TYPES.map(at => (
+                  <TouchableOpacity
+                    key={at.value}
+                    style={[styles.filterChip, {
+                      backgroundColor: assetForm.type === at.value ? accentColor : colors.gray50,
+                      borderColor: assetForm.type === at.value ? accentColor : colors.gray200,
+                    }]}
+                    onPress={() => setAssetForm(f => ({ ...f, type: at.value }))}
+                  >
+                    <Text style={[styles.filterChipText, { color: assetForm.type === at.value ? '#FFF' : colors.gray600 }]}>{at.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Estimated Value ($)</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="0.00"
+                placeholderTextColor={colors.gray400}
+                value={assetForm.estimatedValue}
+                onChangeText={t => setAssetForm(f => ({ ...f, estimatedValue: t }))}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Description (optional)</Text>
+              <TextInput
+                style={[styles.formInput, styles.formInputMultiline, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="Add details..."
+                placeholderTextColor={colors.gray400}
+                value={assetForm.description}
+                onChangeText={t => setAssetForm(f => ({ ...f, description: t }))}
+                multiline
+              />
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: accentColor }]} onPress={handleSaveAsset}>
+                <Text style={styles.saveBtnText}>{editingAsset ? 'Save Changes' : 'Add Asset'}</Text>
+              </TouchableOpacity>
+              {editingAsset && (
+                <TouchableOpacity
+                  style={[styles.deleteModalBtn, { borderColor: colors.danger }]}
+                  onPress={() => { setShowAssetModal(false); handleDeleteAsset(editingAsset); resetAssetForm(); }}
+                >
+                  <Trash2 size={16} color={colors.danger} />
+                  <Text style={[styles.deleteModalBtnText, { color: colors.danger }]}>Delete Asset</Text>
                 </TouchableOpacity>
               )}
             </ScrollView>
