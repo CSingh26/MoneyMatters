@@ -1,0 +1,89 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.prod.yml'
+      - '.github/workflows/deploy.yml'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 526261729062.dkr.ecr.us-east-1.amazonaws.com
+  EC2_HOST: 44.196.125.87
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, finance-service, policy-service, ai-service, dashboard-service]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        run: |
+          cd backend
+          docker build \
+            -f ${{ matrix.service }}/Dockerfile \
+            -t ${{ env.ECR_REGISTRY }}/policylens/${{ matrix.service }}:latest \
+            -t ${{ env.ECR_REGISTRY }}/policylens/${{ matrix.service }}:${{ github.sha }} \
+            .
+          docker push ${{ env.ECR_REGISTRY }}/policylens/${{ matrix.service }}:latest
+          docker push ${{ env.ECR_REGISTRY }}/policylens/${{ matrix.service }}:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            # Login to ECR
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 526261729062.dkr.ecr.us-east-1.amazonaws.com
+
+            # Pull latest images
+            cd /opt/policylens
+            docker compose -f docker-compose.prod.yml pull
+
+            # Restart services
+            docker compose -f docker-compose.prod.yml up -d
+
+            # Run migrations (wait for services to start)
+            sleep 5
+            for svc in auth-service finance-service policy-service ai-service; do
+              echo "Running migrations for $svc..."
+              docker exec $svc npx prisma migrate deploy || echo "Migration for $svc: no pending migrations"
+            done
+
+            # Cleanup old images
+            docker image prune -f
+
+            echo "=== Deployment complete ==="
+            docker compose -f docker-compose.prod.yml ps

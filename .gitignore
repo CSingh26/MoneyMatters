@@ -12,6 +12,7 @@ backend/scripts/node_modules
 .env.development.local
 .env.test.local
 .env.production.local
+deploy/.env.*
 
 # OS files
 **/.DS_Store

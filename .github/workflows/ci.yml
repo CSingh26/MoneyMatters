@@ -1,0 +1,33 @@
+name: CI - Lint & Validate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, finance-service, policy-service, ai-service, dashboard-service]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install shared deps
+        run: cd backend/shared && npm ci
+
+      - name: Install service deps
+        run: cd backend/${{ matrix.service }} && npm ci
+
+      - name: Generate Prisma (if applicable)
+        if: matrix.service != 'dashboard-service'
+        run: cd backend/${{ matrix.service }} && npx prisma generate
+
+      - name: TypeScript check
+        run: cd backend/${{ matrix.service }} && npx tsc --noEmit
