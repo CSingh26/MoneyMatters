@@ -16,6 +16,7 @@ import {
   getFinanceSummary, listIncome, addIncome, updateIncome, deleteIncome,
   listVariableExpenses, addVariableExpense, updateVariableExpense, deleteVariableExpense,
   listFixedExpenses, listAssets, addAsset, updateAsset, deleteAsset,
+  listSavings, addSavings, updateSavings, deleteSavings,
 } from '../api/finance';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
@@ -38,6 +39,17 @@ const categoryIcons = {
 };
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Mortgage', 'Insurance', 'Loan', 'Salary', 'Freelance', 'Other'];
 const ITEMS_PER_PAGE = 8;
+
+const SAVINGS_TYPES = [
+  { value: 'liquid_savings', label: 'Liquid Savings' },
+  { value: 'stocks', label: 'Stocks' },
+  { value: 'index_funds', label: 'Index Funds' },
+  { value: 'retirement_401k', label: '401(k)' },
+  { value: 'ira', label: 'IRA' },
+  { value: 'locked_cd', label: 'Locked CD' },
+  { value: 'crypto', label: 'Crypto' },
+  { value: 'other', label: 'Other' },
+];
 
 // Map frontend categories ↔ backend variable expense categories
 const categoryToBackend = {
@@ -108,6 +120,10 @@ export default function TrackerScreen({ user, navigation }) {
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null);
   const [assetForm, setAssetForm] = useState({ name: '', type: 'other', estimatedValue: '', description: '' });
+  const [savingsItems, setSavingsItems] = useState([]);
+  const [showSavingsModal, setShowSavingsModal] = useState(false);
+  const [editingSavings, setEditingSavings] = useState(null);
+  const [savingsForm, setSavingsForm] = useState({ type: 'liquid_savings', description: '', currentBalance: '', monthlySavings: '' });
   const [formData, setFormData] = useState({
     type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0],
     description: '', note: '',
@@ -116,12 +132,13 @@ export default function TrackerScreen({ user, navigation }) {
   // Load all financial data from backend
   const loadAllData = useCallback(async () => {
     try {
-      const [incomeItems, variableItems, fixedItems, summaryData, assetItems] = await Promise.all([
+      const [incomeItems, variableItems, fixedItems, summaryData, assetItems, savingsData] = await Promise.all([
         listIncome().catch(() => []),
         listVariableExpenses().catch(() => []),
         listFixedExpenses().catch(() => []),
         getFinanceSummary().catch(() => null),
         listAssets().catch(() => []),
+        listSavings().catch(() => []),
       ]);
 
       // Normalize income items → transactions
@@ -173,6 +190,17 @@ export default function TrackerScreen({ user, navigation }) {
         purchaseDate: a.purchaseDate,
         icon: a.type,
         category: (ASSET_TYPES.find(t => t.value === a.type) || {}).label || 'Other',
+      })));
+
+      // Load savings items
+      setSavingsItems((savingsData || []).map(s => ({
+        id: s.id,
+        type: s.type,
+        description: s.description || '',
+        currentBalance: parseFloat(s.currentBalance || 0),
+        monthlySavings: parseFloat(s.monthlySavings || 0),
+        label: (SAVINGS_TYPES.find(t => t.value === s.type) || {}).label || 'Other',
+        createdAt: s.createdAt,
       })));
 
       if (summaryData) {
@@ -343,6 +371,54 @@ export default function TrackerScreen({ user, navigation }) {
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
           await deleteAsset(asset.id);
+          await loadAllData();
+        } catch (err) {
+          Alert.alert('Error', err.message || 'Failed to delete');
+        }
+      }},
+    ]);
+  };
+
+  // ── Savings CRUD ──
+  const resetSavingsForm = () => {
+    setSavingsForm({ type: 'liquid_savings', description: '', currentBalance: '', monthlySavings: '' });
+    setEditingSavings(null);
+  };
+
+  const handleSaveSavingsItem = async () => {
+    if (!savingsForm.currentBalance) return;
+    try {
+      const payload = {
+        type: savingsForm.type,
+        description: savingsForm.description || undefined,
+        currentBalance: parseFloat(savingsForm.currentBalance),
+        monthlySavings: parseFloat(savingsForm.monthlySavings || '0'),
+      };
+      if (editingSavings) {
+        await updateSavings(editingSavings.id, payload);
+      } else {
+        await addSavings(payload);
+      }
+      await loadAllData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save savings item');
+    }
+    setShowSavingsModal(false);
+    resetSavingsForm();
+  };
+
+  const handleEditSavingsItem = (item) => {
+    setEditingSavings(item);
+    setSavingsForm({ type: item.type, description: item.description || '', currentBalance: String(item.currentBalance), monthlySavings: String(item.monthlySavings) });
+    setShowSavingsModal(true);
+  };
+
+  const handleDeleteSavingsItem = (item) => {
+    Alert.alert('Delete Savings', `Are you sure you want to delete this ${item.label} item?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await deleteSavings(item.id);
           await loadAllData();
         } catch (err) {
           Alert.alert('Error', err.message || 'Failed to delete');
@@ -720,6 +796,55 @@ export default function TrackerScreen({ user, navigation }) {
           </View>
         </View>
 
+        {/* ═══ SAVINGS ITEMS (FULL CRUD) ═══ */}
+        <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Savings & Investments</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {savingsItems.length > 0 && (
+                <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
+                  <Text style={[styles.badgeText, { color: '#059669' }]}>
+                    ${savingsItems.reduce((s, i) => s + i.currentBalance, 0).toLocaleString()} total
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={[styles.addFab, { backgroundColor: accentColor }]}
+                onPress={() => { resetSavingsForm(); setShowSavingsModal(true); }}
+              >
+                <Plus size={16} color="#FFF" />
+                <Text style={styles.addFabText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          {savingsItems.length > 0 ? (
+            savingsItems.map(item => (
+              <View key={item.id} style={styles.assetItem}>
+                <View style={[styles.assetIcon, { backgroundColor: colors.successLight }]}>
+                  <PiggyBank size={18} color="#059669" />
+                </View>
+                <View style={styles.assetInfo}>
+                  <Text style={[styles.assetName, { color: colors.gray800 }]}>{item.label}</Text>
+                  <Text style={[styles.assetCategory, { color: colors.gray500 }]}>
+                    {item.description || `+$${item.monthlySavings.toLocaleString()}/mo`}
+                  </Text>
+                </View>
+                <Text style={[styles.assetValue, { color: colors.success }]}>${item.currentBalance.toLocaleString()}</Text>
+                <View style={styles.txnActions}>
+                  <TouchableOpacity onPress={() => handleEditSavingsItem(item)} style={styles.txnActionBtn}>
+                    <Edit3 size={14} color={colors.gray400} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDeleteSavingsItem(item)} style={styles.txnActionBtn}>
+                    <Trash2 size={14} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          ) : (
+            <EmptyState icon={PiggyBank} title="No savings items" message="Tap 'Add' to start tracking your savings" />
+          )}
+        </View>
+
         {/* Savings Goal */}
         <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
@@ -950,6 +1075,76 @@ export default function TrackerScreen({ user, navigation }) {
           </View>
         </View>
       </Modal>
+      {/* ═══ ADD/EDIT SAVINGS MODAL ═══ */}
+      <Modal visible={showSavingsModal} animationType="slide" transparent onRequestClose={() => setShowSavingsModal(false)}>
+        <View style={[styles.modalOverlay]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.cardBg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.gray800 }]}>{editingSavings ? 'Edit Savings' : 'Add Savings'}</Text>
+              <TouchableOpacity onPress={() => { setShowSavingsModal(false); resetSavingsForm(); }} style={[styles.modalCloseBtn, { backgroundColor: colors.gray100 }]}>
+                <X size={18} color={colors.gray500} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Type</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.lg }}>
+                {SAVINGS_TYPES.map(st => (
+                  <TouchableOpacity
+                    key={st.value}
+                    style={[styles.filterChip, {
+                      backgroundColor: savingsForm.type === st.value ? accentColor : colors.gray50,
+                      borderColor: savingsForm.type === st.value ? accentColor : colors.gray200,
+                    }]}
+                    onPress={() => setSavingsForm(f => ({ ...f, type: st.value }))}
+                  >
+                    <Text style={[styles.filterChipText, { color: savingsForm.type === st.value ? '#FFF' : colors.gray600 }]}>{st.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Current Balance ($)</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="0.00"
+                placeholderTextColor={colors.gray400}
+                value={savingsForm.currentBalance}
+                onChangeText={t => setSavingsForm(f => ({ ...f, currentBalance: t }))}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Monthly Contribution ($)</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="0.00"
+                placeholderTextColor={colors.gray400}
+                value={savingsForm.monthlySavings}
+                onChangeText={t => setSavingsForm(f => ({ ...f, monthlySavings: t }))}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.formLabel, { color: colors.gray600 }]}>Description (optional)</Text>
+              <TextInput
+                style={[styles.formInput, styles.formInputMultiline, { backgroundColor: colors.gray50, borderColor: colors.gray200, color: colors.gray800 }]}
+                placeholder="e.g., Emergency fund..."
+                placeholderTextColor={colors.gray400}
+                value={savingsForm.description}
+                onChangeText={t => setSavingsForm(f => ({ ...f, description: t }))}
+                multiline
+              />
+              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: accentColor }]} onPress={handleSaveSavingsItem}>
+                <Text style={styles.saveBtnText}>{editingSavings ? 'Save Changes' : 'Add Savings'}</Text>
+              </TouchableOpacity>
+              {editingSavings && (
+                <TouchableOpacity
+                  style={[styles.deleteModalBtn, { borderColor: colors.danger }]}
+                  onPress={() => { setShowSavingsModal(false); handleDeleteSavingsItem(editingSavings); resetSavingsForm(); }}
+                >
+                  <Trash2 size={16} color={colors.danger} />
+                  <Text style={[styles.deleteModalBtnText, { color: colors.danger }]}>Delete Savings</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* ═══ ADD/EDIT ASSET MODAL ═══ */}
       <Modal visible={showAssetModal} animationType="slide" transparent onRequestClose={() => setShowAssetModal(false)}>
         <View style={[styles.modalOverlay]}>
