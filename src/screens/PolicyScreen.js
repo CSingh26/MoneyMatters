@@ -90,7 +90,22 @@ export default function PolicyScreen({ user, navigation }) {
 
     try {
       const result = await runScenario(query);
-      setChatMessages((prev) => [...prev, { role: 'assistant', scenario: result }]);
+      const scenario = {
+        pathA: {
+          title: result.pathA?.label || 'Status Quo',
+          narrative: result.narrative || '',
+          metrics: result.pathA?.endState || {},
+        },
+        pathB: {
+          title: result.pathB?.label || 'Scenario',
+          narrative: result.narrative || '',
+          metrics: result.pathB?.endState || {},
+        },
+        recommendation: result.delta
+          ? `Risk: ${result.delta.riskLevel || 'N/A'} · Recovery: ${result.delta.monthsToRecover || '?'} months · Net worth impact: $${result.delta.netWorthDiff || 0}`
+          : null,
+      };
+      setChatMessages((prev) => [...prev, { role: 'assistant', scenario }]);
     } catch {
       setChatMessages((prev) => [...prev, {
         role: 'assistant',
