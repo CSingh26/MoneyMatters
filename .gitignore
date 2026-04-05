@@ -62,3 +62,4 @@ docs/private_docs/
 *.key
 *.mobileprovision
 *.orig.*
+policylens-ec2-env/

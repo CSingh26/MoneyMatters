@@ -91,10 +91,10 @@ export default function TrackerScreen({ user, navigation }) {
       else months[key].expenses += t.amount;
     });
     const sorted = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0]));
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return sorted.map(([key, val]) => {
-      const [, m] = key.split('-');
-      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return { month: monthNames[parseInt(m, 10) - 1], income: val.income, expenses: val.expenses };
+      const [y, m] = key.split('-');
+      return { month: `${monthNames[parseInt(m, 10) - 1]} '${y.slice(2)}`, income: val.income, expenses: val.expenses };
     });
   }, [allTransactions]);
 
@@ -485,13 +485,18 @@ export default function TrackerScreen({ user, navigation }) {
     ]);
   };
 
-  // Trend chart data
+  // Trend chart data — limit monthly to last 12
+  const CHART_MONTHS = 12;
+  const chartMonthly = useMemo(() => monthlyData.slice(-CHART_MONTHS), [monthlyData]);
+
   const trendChartData = useMemo(() => {
     if (trendView === 'monthly') {
-      const maxVal = Math.max(...monthlyData.map(m => Math.max(m.income, m.expenses)), 1000);
+      const src = chartMonthly;
+      const maxVal = Math.max(...src.map(m => Math.max(m.income, m.expenses)), 1000);
+      const labelEvery = src.length > 6 ? 2 : 1;
       return {
-        income: monthlyData.map(m => ({ value: m.income, label: m.month })),
-        expenses: monthlyData.map(m => ({ value: m.expenses, label: m.month })),
+        income: src.map((m, i) => ({ value: m.income, label: i % labelEvery === 0 ? m.month.slice(0, 3) : '' })),
+        expenses: src.map((m, i) => ({ value: m.expenses, label: i % labelEvery === 0 ? m.month.slice(0, 3) : '' })),
         maxValue: Math.ceil(maxVal / 1000) * 1000,
       };
     }
@@ -501,17 +506,18 @@ export default function TrackerScreen({ user, navigation }) {
       expenses: yearlyData.map(y => ({ value: y.expenses, label: y.year })),
       maxValue: Math.ceil(maxVal / 1000) * 1000,
     };
-  }, [trendView, monthlyData, yearlyData]);
+  }, [trendView, chartMonthly, yearlyData]);
 
-  // Bar chart data
+  // Bar chart data — limit monthly to last 12
   const barData = useMemo(() => {
     const data = [];
-    const source = trendView === 'monthly' ? monthlyData : yearlyData;
-    source.forEach(m => {
+    const source = trendView === 'monthly' ? chartMonthly : yearlyData;
+    const labelEvery = source.length > 12 ? 3 : source.length > 6 ? 2 : 1;
+    source.forEach((m, i) => {
       const inc = m.income || 0;
       const exp = m.expenses || 0;
       data.push({
-        value: inc, label: m.month || m.year, labelWidth: 30, spacing: 2,
+        value: inc, label: i % labelEvery === 0 ? (m.month || m.year) : '', labelWidth: 40, spacing: 2,
         frontColor: isDark ? '#7B5EA7' : '#FF4081',
         topLabelComponent: () => <Text style={{ fontSize: 8, color: colors.gray400, marginBottom: 1 }}>{(inc/1000).toFixed(1)}k</Text>,
       });
@@ -522,7 +528,7 @@ export default function TrackerScreen({ user, navigation }) {
       });
     });
     return data;
-  }, [trendView, isDark, colors, monthlyData, yearlyData]);
+  }, [trendView, isDark, colors, chartMonthly, yearlyData]);
 
   // Pie chart data
   const pieData = spendingByCategory.map(c => ({
@@ -567,7 +573,7 @@ export default function TrackerScreen({ user, navigation }) {
                   >
                     <Text style={[styles.segmentText, { color: trendView === view ? colors.gray800 : colors.gray400 }]}>
                       {view === 'monthly'
-                        ? `Monthly (${monthlyData.length} mo)`
+                        ? `Monthly (${chartMonthly.length} mo)`
                         : `Yearly (${yearlyData.length} yr)`}
                     </Text>
                   </TouchableOpacity>
@@ -578,8 +584,9 @@ export default function TrackerScreen({ user, navigation }) {
             <LineChart
               data={trendChartData.income}
               data2={trendChartData.expenses}
+              width={screenWidth - 100}
               height={200}
-              spacing={Math.max(16, Math.floor((screenWidth - 80) / Math.max(trendChartData.income.length, 1)))}
+              spacing={Math.max(20, Math.floor((screenWidth - 120) / Math.max(trendChartData.income.length, 1)))}
               color1={accentColor}
               color2={secondaryAccent}
               dataPointsColor1={accentColor}
@@ -599,6 +606,7 @@ export default function TrackerScreen({ user, navigation }) {
               yAxisColor="transparent"
               yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
               xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 10 }}
+              xAxisLabelsHeight={20}
               noOfSections={4}
               maxValue={trendChartData.maxValue}
               isAnimated
@@ -672,7 +680,7 @@ export default function TrackerScreen({ user, navigation }) {
             <View style={[styles.badge, { backgroundColor: colors.primary50 }]}>
               <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>
                 {trendView === 'monthly'
-                  ? `Last ${Math.min(6, monthlyData.length)} Months`
+                  ? `Last ${chartMonthly.length} Months`
                   : `Last ${yearlyData.length} Years`}
               </Text>
             </View>
@@ -682,15 +690,16 @@ export default function TrackerScreen({ user, navigation }) {
               <View style={styles.chartContainer}>
                 <BarChart
                   data={barData}
-                  barWidth={Math.max(8, Math.floor((screenWidth - 100) / Math.max(barData.length * 2, 1)))}
-                  spacing={Math.max(4, Math.floor((screenWidth - 100) / Math.max(barData.length * 3, 1)))}
+                  width={screenWidth - 100}
+                  barWidth={Math.max(8, Math.floor((screenWidth - 130) / Math.max(barData.length, 1) - 4))}
+                  spacing={4}
                   initialSpacing={8}
                   roundedTop
                   roundedBottom={false}
                   xAxisThickness={0}
                   yAxisThickness={0}
                   yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
-                  xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
+                  xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 8 }}
                   noOfSections={4}
                   maxValue={Math.max(...barData.map(d => d.value), 1000)}
                   height={200}
@@ -963,20 +972,21 @@ export default function TrackerScreen({ user, navigation }) {
             <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
               <Text style={[styles.badgeText, { color: '#059669' }]}>
                 {trendView === 'monthly'
-                  ? `${monthlyData.length} Months`
+                  ? `${chartMonthly.length} Months`
                   : `${yearlyData.length} Years`}
               </Text>
             </View>
           </View>
-          {(trendView === 'monthly' ? monthlyData : yearlyData).length > 0 ? (
+          {(trendView === 'monthly' ? chartMonthly : yearlyData).length > 0 ? (
             <View style={styles.chartContainer}>
               <BarChart
-                data={(trendView === 'monthly' ? monthlyData : yearlyData).map(d => {
+                data={(trendView === 'monthly' ? chartMonthly : yearlyData).map((d, i, arr) => {
                   const saved = (d.income || 0) - (d.expenses || 0);
+                  const labelEvery = arr.length > 12 ? 3 : arr.length > 6 ? 2 : 1;
                   return {
                     value: saved / 1000,
-                    label: d.month || d.year,
-                    labelWidth: 28,
+                    label: i % labelEvery === 0 ? (d.month || d.year) : '',
+                    labelWidth: 40,
                     frontColor: saved >= 0 ? (isDark ? '#00B894' : '#10B981') : (isDark ? '#E74C3C' : '#EF4444'),
                     topLabelComponent: () => (
                       <Text style={{ fontSize: 8, color: colors.gray400, marginBottom: 1 }}>
@@ -985,15 +995,16 @@ export default function TrackerScreen({ user, navigation }) {
                     ),
                   };
                 })}
-                barWidth={trendView === 'monthly' ? 16 : 32}
-                spacing={trendView === 'monthly' ? 10 : 20}
+                width={screenWidth - 100}
+                barWidth={trendView === 'monthly' ? 14 : 28}
+                spacing={trendView === 'monthly' ? 8 : 16}
                 initialSpacing={8}
                 roundedTop
                 roundedBottom={false}
                 xAxisThickness={0}
                 yAxisThickness={0}
                 yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
+                xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 8 }}
                 noOfSections={4}
                 formatYLabel={(val) => `$${val}k`}
                 height={150}
@@ -1379,7 +1390,7 @@ const styles = StyleSheet.create({
   segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: Radii.sm },
   segmentText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
   // Charts
-  chartContainer: { alignItems: 'center', paddingTop: Spacing.sm },
+  chartContainer: { alignItems: 'center', paddingTop: Spacing.sm, overflow: 'hidden' },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.xxl, marginTop: Spacing.lg },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
