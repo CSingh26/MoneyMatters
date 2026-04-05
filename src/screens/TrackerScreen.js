@@ -86,7 +86,7 @@ export default function TrackerScreen({ user, navigation }) {
       if (t.type === 'Income') months[key].income += t.amount;
       else months[key].expenses += t.amount;
     });
-    const sorted = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
+    const sorted = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0]));
     return sorted.map(([key, val]) => {
       const [, m] = key.split('-');
       const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -103,7 +103,7 @@ export default function TrackerScreen({ user, navigation }) {
       if (t.type === 'Income') years[yr].income += t.amount;
       else years[yr].expenses += t.amount;
     });
-    return Object.entries(years).sort((a, b) => a[0].localeCompare(b[0])).slice(-5)
+    return Object.entries(years).sort((a, b) => a[0].localeCompare(b[0]))
       .map(([yr, val]) => ({ year: yr, income: val.income, expenses: val.expenses }));
   }, [allTransactions]);
 
@@ -448,7 +448,7 @@ export default function TrackerScreen({ user, navigation }) {
   // Bar chart data
   const barData = useMemo(() => {
     const data = [];
-    const source = trendView === 'monthly' ? monthlyData.slice(-6) : yearlyData;
+    const source = trendView === 'monthly' ? monthlyData : yearlyData;
     source.forEach(m => {
       const inc = m.income || 0;
       const exp = m.expenses || 0;
@@ -508,7 +508,9 @@ export default function TrackerScreen({ user, navigation }) {
                     onPress={() => setTrendView(view)}
                   >
                     <Text style={[styles.segmentText, { color: trendView === view ? colors.gray800 : colors.gray400 }]}>
-                      {view === 'monthly' ? 'Monthly (12 mo)' : 'Yearly (5 yr)'}
+                      {view === 'monthly'
+                        ? `Monthly (${monthlyData.length} mo)`
+                        : `Yearly (${yearlyData.length} yr)`}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -519,7 +521,7 @@ export default function TrackerScreen({ user, navigation }) {
               data={trendChartData.income}
               data2={trendChartData.expenses}
               height={200}
-              spacing={trendView === 'monthly' ? 24 : 50}
+              spacing={Math.max(16, Math.floor((screenWidth - 80) / Math.max(trendChartData.income.length, 1)))}
               color1={accentColor}
               color2={secondaryAccent}
               dataPointsColor1={accentColor}
@@ -611,7 +613,9 @@ export default function TrackerScreen({ user, navigation }) {
             <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Income vs Expenses</Text>
             <View style={[styles.badge, { backgroundColor: colors.primary50 }]}>
               <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>
-                {trendView === 'monthly' ? 'Last 6 Months' : 'Last 5 Years'}
+                {trendView === 'monthly'
+                  ? `Last ${Math.min(6, monthlyData.length)} Months`
+                  : `Last ${yearlyData.length} Years`}
               </Text>
             </View>
           </View>
@@ -620,8 +624,8 @@ export default function TrackerScreen({ user, navigation }) {
               <View style={styles.chartContainer}>
                 <BarChart
                   data={barData}
-                  barWidth={14}
-                  spacing={14}
+                  barWidth={Math.max(8, Math.floor((screenWidth - 100) / Math.max(barData.length * 2, 1)))}
+                  spacing={Math.max(4, Math.floor((screenWidth - 100) / Math.max(barData.length * 3, 1)))}
                   initialSpacing={8}
                   roundedTop
                   roundedBottom={false}
@@ -877,7 +881,9 @@ export default function TrackerScreen({ user, navigation }) {
             <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Savings Trend</Text>
             <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
               <Text style={[styles.badgeText, { color: '#059669' }]}>
-                {trendView === 'monthly' ? '12 Months' : '5 Years'}
+                {trendView === 'monthly'
+                  ? `${monthlyData.length} Months`
+                  : `${yearlyData.length} Years`}
               </Text>
             </View>
           </View>
