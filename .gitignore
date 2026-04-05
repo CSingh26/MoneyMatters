@@ -7,6 +7,10 @@
 # Environment files
 .env
 **/.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # OS files
 **/.DS_Store
@@ -18,12 +22,26 @@ Thumbs.db
 *.swo
 .vscode/
 
-# Confidential documents
-docs/private_docs/
+# Expo
+.expo/
+web-build/
+expo-env.d.ts
+
+# Native builds
+ios/
+android/
+
+# Metro
+.metro-health-check*
 
 # Logs
 *.log
-npm-debug.log*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# TypeScript
+*.tsbuildinfo
 
 # Prisma
 **/prisma/migrations/dev.db
@@ -31,3 +49,14 @@ npm-debug.log*
 
 # Uploads (policy-service)
 backend/policy-service/uploads/
+
+# Confidential documents
+docs/private_docs/
+
+# Editor/Signing
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
