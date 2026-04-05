@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const THEME_KEY = '@policylens_theme';
+const THEME_KEY = '@synaxis_theme';
 
 // ─── Dark Mode Colors ───
 const DarkColors = {

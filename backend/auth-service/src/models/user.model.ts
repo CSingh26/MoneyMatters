@@ -1,5 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient, Gender } from '../generated/prisma/client.js';
+import { PrismaClient, Gender, EmploymentStatus, IncomeRange } from '../generated/prisma/client.js';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -11,6 +11,9 @@ export interface CreateUserData {
   lastNameEnc: string;
   age: number;
   gender: Gender;
+  occupation?: string;
+  employmentStatus?: EmploymentStatus;
+  incomeRange?: IncomeRange;
 }
 
 export async function createUser(data: CreateUserData) {
@@ -27,7 +30,7 @@ export async function findUserById(id: string) {
 
 export async function updateUser(
   id: string,
-  data: Partial<Pick<CreateUserData, 'firstName' | 'lastNameEnc' | 'age' | 'gender'>> & {
+  data: Partial<Pick<CreateUserData, 'firstName' | 'lastNameEnc' | 'age' | 'gender' | 'occupation' | 'employmentStatus' | 'incomeRange'>> & {
     lastLoginAt?: Date;
   },
 ) {

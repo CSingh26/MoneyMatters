@@ -1,4 +1,4 @@
-// ─── Mock Data for PolicyLens AI ───
+// ─── Mock Data for Synaxis ───
 
 export const userData = {
   name: 'Harsh',

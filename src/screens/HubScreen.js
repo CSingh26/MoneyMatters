@@ -32,7 +32,7 @@ export default function HubScreen({ user, onLogout, navigation }) {
             <View style={[styles.logo, { backgroundColor: isDark ? colors.primary300 : '#6C5CE7' }]}>
               <Sparkles size={20} color="#FFFFFF" />
             </View>
-            <Text style={[styles.logoText, { color: colors.gray800 }]}>PolicyLens AI</Text>
+            <Text style={[styles.logoText, { color: colors.gray800 }]}>Synaxis</Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: isDark ? colors.gray50 : colors.gray100 }]}>
@@ -112,7 +112,7 @@ export default function HubScreen({ user, onLogout, navigation }) {
             </View>
           </TouchableOpacity>
 
-          {/* PolicyLens AI */}
+          {/* Synaxis AI */}
           <TouchableOpacity
             style={[styles.featureCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
             onPress={() => navigation.navigate('Policy')}
@@ -123,7 +123,7 @@ export default function HubScreen({ user, onLogout, navigation }) {
               <View style={[styles.cardIcon, { backgroundColor: isDark ? 'rgba(123,94,167,0.2)' : '#F0EDFF' }]}>
                 <ShieldCheck size={28} color={isDark ? '#9B7BD4' : '#6C5CE7'} />
               </View>
-              <Text style={[styles.cardTitle, { color: colors.gray800 }]}>PolicyLens AI</Text>
+              <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Synaxis AI</Text>
               <Text style={[styles.cardDesc, { color: colors.gray500 }]}>
                 Analyze insurance policies, uncover coverage gaps, and simulate 'what-if' scenarios.
               </Text>
@@ -138,7 +138,7 @@ export default function HubScreen({ user, onLogout, navigation }) {
                 </View>
               </View>
               <View style={styles.cardAction}>
-                <Text style={[styles.actionText, { color: isDark ? colors.accent : '#AB47BC' }]}>Open PolicyLens</Text>
+                <Text style={[styles.actionText, { color: isDark ? colors.accent : '#AB47BC' }]}>Open Synaxis</Text>
                 <ArrowRight size={16} color={isDark ? colors.accent : '#AB47BC'} />
               </View>
             </View>

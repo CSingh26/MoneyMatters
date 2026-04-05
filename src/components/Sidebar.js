@@ -17,7 +17,7 @@ export default function Sidebar({ user, onLogout, navigation, activePage }) {
         <View style={styles.logo}>
           <Sparkles size={20} color={Colors.white} />
         </View>
-        <Text style={styles.brandTitle}>PolicyLens</Text>
+        <Text style={styles.brandTitle}>Synaxis</Text>
       </View>
 
       {/* Nav Links */}

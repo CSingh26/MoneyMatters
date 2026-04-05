@@ -12,7 +12,11 @@ import {
 } from 'lucide-react-native';
 import StatCard from '../components/StatCard';
 import EmptyState from '../components/EmptyState';
-import { getFinanceSummary } from '../api/finance';
+import {
+  getFinanceSummary, listIncome, addIncome, updateIncome, deleteIncome,
+  listVariableExpenses, addVariableExpense, updateVariableExpense, deleteVariableExpense,
+  listFixedExpenses,
+} from '../api/finance';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 
@@ -26,6 +30,17 @@ const categoryIcons = {
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Mortgage', 'Insurance', 'Loan', 'Salary', 'Freelance', 'Other'];
 const ITEMS_PER_PAGE = 8;
 
+// Map frontend categories ↔ backend variable expense categories
+const categoryToBackend = {
+  Food: 'food_groceries', Transport: 'transport', Shopping: 'shopping',
+  Mortgage: 'misc', Insurance: 'misc', Loan: 'misc',
+  Salary: 'misc', Freelance: 'misc', Other: 'misc',
+};
+const backendToCategory = {
+  food_groceries: 'Food', dining_out: 'Food', gas: 'Transport', transport: 'Transport',
+  shopping: 'Shopping', entertainment: 'Shopping', healthcare: 'Insurance', misc: 'Other',
+};
+
 export default function TrackerScreen({ user, navigation }) {
   const { isDark, toggleTheme, colors } = useTheme();
   const [allTransactions, setAllTransactions] = useState([]);
@@ -38,43 +53,123 @@ export default function TrackerScreen({ user, navigation }) {
   const [tooltipData, setTooltipData] = useState(null);
   const [financialSummary, setFinancialSummary] = useState(null);
   const [savingsGoal, setSavingsGoal] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Historical data — populated when backend trend API is available
-  const monthlyData = [];
-  const yearlyData = [];
-  const spendingByCategory = [];
+  // Historical data — computed from transactions
+  const monthlyData = useMemo(() => {
+    if (allTransactions.length === 0) return [];
+    const months = {};
+    allTransactions.forEach(t => {
+      const key = t.date.slice(0, 7); // YYYY-MM
+      if (!months[key]) months[key] = { income: 0, expenses: 0 };
+      if (t.type === 'Income') months[key].income += t.amount;
+      else months[key].expenses += t.amount;
+    });
+    const sorted = Object.entries(months).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
+    return sorted.map(([key, val]) => {
+      const [, m] = key.split('-');
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return { month: monthNames[parseInt(m, 10) - 1], income: val.income, expenses: val.expenses };
+    });
+  }, [allTransactions]);
+
+  const yearlyData = useMemo(() => {
+    if (allTransactions.length === 0) return [];
+    const years = {};
+    allTransactions.forEach(t => {
+      const yr = t.date.slice(0, 4);
+      if (!years[yr]) years[yr] = { income: 0, expenses: 0 };
+      if (t.type === 'Income') years[yr].income += t.amount;
+      else years[yr].expenses += t.amount;
+    });
+    return Object.entries(years).sort((a, b) => a[0].localeCompare(b[0])).slice(-5)
+      .map(([yr, val]) => ({ year: yr, income: val.income, expenses: val.expenses }));
+  }, [allTransactions]);
+
+  const spendingByCategory = useMemo(() => {
+    const catColors = { Food: '#FF6384', Transport: '#36A2EB', Shopping: '#FFCE56', Insurance: '#4BC0C0', Other: '#9966FF', Mortgage: '#FF9F40', Loan: '#C9CBCF', Freelance: '#7B5EA7', Salary: '#00B894' };
+    const cats = {};
+    allTransactions.filter(t => t.type === 'Expense').forEach(t => {
+      cats[t.category] = (cats[t.category] || 0) + t.amount;
+    });
+    return Object.entries(cats).map(([name, value]) => ({ name, value: Math.round(value), color: catColors[name] || '#999' }));
+  }, [allTransactions]);
+
   const assets = [];
   const [formData, setFormData] = useState({
     type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0],
     description: '', note: '',
   });
 
-  // Load financial summary from API
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await getFinanceSummary();
+  // Load all financial data from backend
+  const loadAllData = useCallback(async () => {
+    try {
+      const [incomeItems, variableItems, fixedItems, summaryData] = await Promise.all([
+        listIncome().catch(() => []),
+        listVariableExpenses().catch(() => []),
+        listFixedExpenses().catch(() => []),
+        getFinanceSummary().catch(() => null),
+      ]);
+
+      // Normalize income items → transactions
+      const incomeTxns = (incomeItems || []).map(item => ({
+        id: item.id,
+        type: 'Income',
+        category: 'Salary',
+        amount: parseFloat(item.monthlyAmount || item.amount || 0),
+        date: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+        description: item.name,
+        note: `Frequency: ${item.frequency || 'monthly'}`,
+        _backendType: 'income',
+      }));
+
+      // Normalize variable expenses → transactions
+      const expenseTxns = (variableItems || []).map(item => ({
+        id: item.id,
+        type: 'Expense',
+        category: backendToCategory[item.category] || 'Other',
+        amount: parseFloat(item.estimatedMonthly || 0),
+        date: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+        description: item.name,
+        note: '',
+        _backendType: 'variable',
+        _backendCategory: item.category,
+      }));
+
+      // Normalize fixed expenses → transactions (read-only display)
+      const fixedTxns = (fixedItems || []).map(item => ({
+        id: item.id,
+        type: 'Expense',
+        category: backendToCategory[item.category] || item.category || 'Other',
+        amount: parseFloat(item.monthlyAmount || 0),
+        date: item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+        description: item.name,
+        note: `Fixed: ${item.frequency || 'monthly'}`,
+        _backendType: 'fixed',
+      }));
+
+      setAllTransactions([...incomeTxns, ...expenseTxns, ...fixedTxns].sort((a, b) => b.date.localeCompare(a.date)));
+
+      if (summaryData) {
         setFinancialSummary({
-          totalBalance: data.totalSavingsBalance,
-          monthlyIncome: data.totalMonthlyIncome,
-          monthlyExpenses: data.totalMonthlyExpenses,
-          savingsRate: data.savingsRate,
+          totalBalance: summaryData.totalSavingsBalance,
+          monthlyIncome: summaryData.totalMonthlyIncome,
+          monthlyExpenses: summaryData.totalMonthlyExpenses,
+          savingsRate: summaryData.savingsRate,
         });
-        // Use first goal from API if available
-        if (data.goals && data.goals.length > 0) {
-          const goal = data.goals[0];
-          setSavingsGoal({
-            name: goal.name,
-            target: goal.target,
-            current: goal.current,
-            deadline: goal.deadline,
-          });
+        if (summaryData.goals && summaryData.goals.length > 0) {
+          const goal = summaryData.goals[0];
+          setSavingsGoal({ name: goal.name, target: goal.target, current: goal.current, deadline: goal.deadline });
         }
-      } catch {
-        // Keep mock data as fallback
       }
-    })();
+    } catch (err) {
+      console.warn('Failed to load finance data:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { loadAllData(); }, [loadAllData]);
 
   const resetForm = () => {
     setFormData({ type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0], description: '', note: '' });
@@ -115,15 +210,41 @@ export default function TrackerScreen({ user, navigation }) {
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
   }, [paginatedTransactions]);
 
-  // CRUD Operations
-  const handleSaveTransaction = () => {
+  // CRUD Operations — persisted to backend
+  const handleSaveTransaction = async () => {
     if (!formData.amount || !formData.description) return;
-    if (editingTxn) {
-      setAllTransactions(prev => prev.map(t => t.id === editingTxn.id ? { ...t, ...formData, amount: parseFloat(formData.amount) } : t));
-    } else {
-      const newTxn = { id: Date.now(), ...formData, amount: parseFloat(formData.amount) };
-      setAllTransactions(prev => [newTxn, ...prev]);
+    const amount = parseFloat(formData.amount);
+
+    try {
+      if (editingTxn) {
+        // UPDATE
+        if (editingTxn._backendType === 'income' || formData.type === 'Income') {
+          await updateIncome(editingTxn.id, { name: formData.description, amount, frequency: 'monthly' });
+        } else if (editingTxn._backendType === 'variable' || formData.type === 'Expense') {
+          await updateVariableExpense(editingTxn.id, {
+            name: formData.description,
+            category: categoryToBackend[formData.category] || 'misc',
+            estimatedMonthly: amount,
+          });
+        }
+      } else {
+        // CREATE
+        if (formData.type === 'Income') {
+          await addIncome({ name: formData.description, amount, frequency: 'monthly' });
+        } else {
+          await addVariableExpense({
+            name: formData.description,
+            category: categoryToBackend[formData.category] || 'misc',
+            estimatedMonthly: amount,
+          });
+        }
+      }
+      // Reload all data from backend
+      await loadAllData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save transaction');
     }
+
     setShowFormModal(false);
     resetForm();
     setCurrentPage(1);
@@ -138,8 +259,17 @@ export default function TrackerScreen({ user, navigation }) {
   const handleDeleteTransaction = (txn) => {
     Alert.alert('Delete Transaction', `Are you sure you want to delete "${txn.description}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-        setAllTransactions(prev => prev.filter(t => t.id !== txn.id));
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          if (txn._backendType === 'income') {
+            await deleteIncome(txn.id);
+          } else if (txn._backendType === 'variable') {
+            await deleteVariableExpense(txn.id);
+          }
+          await loadAllData();
+        } catch (err) {
+          Alert.alert('Error', err.message || 'Failed to delete');
+        }
       }},
     ]);
   };
@@ -151,18 +281,20 @@ export default function TrackerScreen({ user, navigation }) {
   // Trend chart data
   const trendChartData = useMemo(() => {
     if (trendView === 'monthly') {
+      const maxVal = Math.max(...monthlyData.map(m => Math.max(m.income, m.expenses)), 1000);
       return {
         income: monthlyData.map(m => ({ value: m.income, label: m.month })),
         expenses: monthlyData.map(m => ({ value: m.expenses, label: m.month })),
-        maxValue: 6000,
+        maxValue: Math.ceil(maxVal / 1000) * 1000,
       };
     }
+    const maxVal = Math.max(...yearlyData.map(y => Math.max(y.income, y.expenses)), 1000);
     return {
       income: yearlyData.map(y => ({ value: y.income, label: y.year })),
       expenses: yearlyData.map(y => ({ value: y.expenses, label: y.year })),
-      maxValue: 70000,
+      maxValue: Math.ceil(maxVal / 1000) * 1000,
     };
-  }, [trendView]);
+  }, [trendView, monthlyData, yearlyData]);
 
   // Bar chart data
   const barData = useMemo(() => {
@@ -183,7 +315,7 @@ export default function TrackerScreen({ user, navigation }) {
       });
     });
     return data;
-  }, [trendView, isDark, colors]);
+  }, [trendView, isDark, colors, monthlyData, yearlyData]);
 
   // Pie chart data
   const pieData = spendingByCategory.map(c => ({
@@ -349,7 +481,7 @@ export default function TrackerScreen({ user, navigation }) {
                   yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
                   xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
                   noOfSections={4}
-                  maxValue={trendView === 'monthly' ? 6000 : 70000}
+                  maxValue={Math.max(...barData.map(d => d.value), 1000)}
                   height={200}
                   isAnimated
                   animationDuration={600}
@@ -389,12 +521,15 @@ export default function TrackerScreen({ user, navigation }) {
                   radius={90}
                   innerRadius={55}
                   innerCircleColor={colors.cardBg}
-                  centerLabelComponent={() => (
-                    <View style={styles.donutCenter}>
-                      <Text style={[styles.donutTotal, { color: colors.gray800 }]}>$3,250</Text>
-                      <Text style={[styles.donutLabel, { color: colors.gray500 }]}>Total</Text>
-                    </View>
-                  )}
+                  centerLabelComponent={() => {
+                    const total = spendingByCategory.reduce((s, c) => s + c.value, 0);
+                    return (
+                      <View style={styles.donutCenter}>
+                        <Text style={[styles.donutTotal, { color: colors.gray800 }]}>${total.toLocaleString()}</Text>
+                        <Text style={[styles.donutLabel, { color: colors.gray500 }]}>Total</Text>
+                      </View>
+                    );
+                  }}
                   isAnimated
                 />
               </View>

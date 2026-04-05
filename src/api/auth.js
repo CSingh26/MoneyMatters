@@ -2,11 +2,11 @@ import { apiFetch, setTokens, clearTokens } from './client';
 
 const BASE = process.env.EXPO_PUBLIC_AUTH_API || 'http://localhost:3001';
 
-export async function register({ email, password, firstName, lastName, age, gender }) {
+export async function register({ email, password, confirmPassword, firstName, lastName, age, gender, occupation, employmentStatus, incomeRange }) {
   const json = await apiFetch(BASE, '/api/auth/register', {
     method: 'POST',
     auth: false,
-    body: JSON.stringify({ email, password, firstName, lastName, age, gender }),
+    body: JSON.stringify({ email, password, confirmPassword, firstName, lastName, age, gender, occupation, employmentStatus, incomeRange }),
   });
   await setTokens(json.data.accessToken, json.data.refreshToken);
   return json.data.user;

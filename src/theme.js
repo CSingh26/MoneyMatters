@@ -1,4 +1,4 @@
-// ─── PolicyLens AI Design Tokens ───
+// ─── Synaxis Design Tokens ───
 
 export const Colors = {
   // Primary Palette

@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { ArrowLeft, Mail, Calendar, Users, User, Sun, Moon } from 'lucide-react-native';
+import { ArrowLeft, Mail, Calendar, Users, User, Sun, Moon, Briefcase, DollarSign, Building2 } from 'lucide-react-native';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
 import { getFinanceSummary } from '../api/finance';
@@ -13,6 +13,26 @@ const genderLabels = {
   female: 'Female',
   non_binary: 'Non-binary',
   prefer_not_to_say: 'Prefer not to say',
+};
+
+const employmentLabels = {
+  full_time: 'Full-time',
+  part_time: 'Part-time',
+  self_employed: 'Self-employed',
+  freelancer: 'Freelancer',
+  unemployed: 'Unemployed',
+  student: 'Student',
+  retired: 'Retired',
+};
+
+const incomeLabels = {
+  under_25k: 'Under $25k',
+  income_25k_50k: '$25k – $50k',
+  income_50k_75k: '$50k – $75k',
+  income_75k_100k: '$75k – $100k',
+  income_100k_150k: '$100k – $150k',
+  income_150k_200k: '$150k – $200k',
+  over_200k: 'Over $200k',
 };
 
 export default function ProfileScreen({ user, navigation }) {
@@ -41,6 +61,9 @@ export default function ProfileScreen({ user, navigation }) {
     { icon: Mail, label: 'Email', value: user?.email || '—' },
     { icon: Calendar, label: 'Age', value: user?.age ? `${user.age} years` : '—' },
     { icon: Users, label: 'Gender', value: genderLabels[user?.gender] || user?.gender || '—' },
+    { icon: Briefcase, label: 'Occupation', value: user?.occupation || '—' },
+    { icon: Building2, label: 'Employment', value: employmentLabels[user?.employmentStatus] || user?.employmentStatus || '—' },
+    { icon: DollarSign, label: 'Income Range', value: incomeLabels[user?.incomeRange] || user?.incomeRange || '—' },
   ];
 
   return (

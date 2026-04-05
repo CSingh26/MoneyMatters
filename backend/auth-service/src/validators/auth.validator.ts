@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const employmentStatuses = ['full_time', 'part_time', 'self_employed', 'freelancer', 'unemployed', 'student', 'retired'] as const;
+const incomeRanges = ['under_25k', 'income_25k_50k', 'income_50k_75k', 'income_75k_100k', 'income_100k_150k', 'income_150k_200k', 'over_200k'] as const;
+
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z
@@ -14,6 +17,9 @@ export const registerSchema = z.object({
   lastName: z.string().min(1, 'Last name is required').max(100),
   age: z.number().int().min(18, 'Must be at least 18').max(120),
   gender: z.enum(['male', 'female', 'non_binary', 'prefer_not_to_say']),
+  occupation: z.string().min(1, 'Occupation is required').max(150).optional(),
+  employmentStatus: z.enum(employmentStatuses).optional(),
+  incomeRange: z.enum(incomeRanges).optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
@@ -33,6 +39,9 @@ export const updateProfileSchema = z.object({
   lastName: z.string().min(1).max(100).optional(),
   age: z.number().int().min(18).max(120).optional(),
   gender: z.enum(['male', 'female', 'non_binary', 'prefer_not_to_say']).optional(),
+  occupation: z.string().min(1).max(150).optional(),
+  employmentStatus: z.enum(employmentStatuses).optional(),
+  incomeRange: z.enum(incomeRanges).optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

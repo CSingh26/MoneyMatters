@@ -1,6 +1,7 @@
 {
   "name": "policylens-shared",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "description": "Shared types, middleware, and utilities for PolicyLens AI microservices",
   "dependencies": {

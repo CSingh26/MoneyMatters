@@ -39,8 +39,8 @@ export function AuthProvider({ children }) {
     return userData;
   }, []);
 
-  const register = useCallback(async ({ email, password, firstName, lastName, age, gender }) => {
-    const userData = await authAPI.register({ email, password, firstName, lastName, age, gender });
+  const register = useCallback(async ({ email, password, confirmPassword, firstName, lastName, age, gender, occupation, employmentStatus, incomeRange }) => {
+    const userData = await authAPI.register({ email, password, confirmPassword, firstName, lastName, age, gender, occupation, employmentStatus, incomeRange });
     setUser(userData);
     return userData;
   }, []);

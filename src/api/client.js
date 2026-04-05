@@ -1,8 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const TOKEN_KEY = 'policylens_access_token';
-const REFRESH_KEY = 'policylens_refresh_token';
+const TOKEN_KEY = 'synaxis_access_token';
+const REFRESH_KEY = 'synaxis_refresh_token';
 
 const AUTH_API = process.env.EXPO_PUBLIC_AUTH_API || 'http://localhost:3001';
 

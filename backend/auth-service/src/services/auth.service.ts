@@ -9,7 +9,7 @@ import {
 } from '../models/user.model';
 import { generateTokenPair, rotateRefreshToken, revokeTokensForUser } from './token.service';
 import type { RegisterInput, LoginInput, UpdateProfileInput } from '../validators/auth.validator';
-import type { Gender } from '../generated/prisma/client.js';
+import type { Gender, EmploymentStatus, IncomeRange } from '../generated/prisma/client.js';
 
 const SALT_ROUNDS = 12;
 
@@ -28,6 +28,9 @@ export async function register(input: RegisterInput) {
     lastNameEnc,
     age: input.age,
     gender: input.gender as Gender,
+    occupation: input.occupation,
+    employmentStatus: input.employmentStatus as EmploymentStatus | undefined,
+    incomeRange: input.incomeRange as IncomeRange | undefined,
   });
 
   const tokens = await generateTokenPair(user.id, user.email);
@@ -80,6 +83,9 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
   if (input.lastName !== undefined) data.lastNameEnc = encrypt(input.lastName, encKey);
   if (input.age !== undefined) data.age = input.age;
   if (input.gender !== undefined) data.gender = input.gender;
+  if (input.occupation !== undefined) data.occupation = input.occupation;
+  if (input.employmentStatus !== undefined) data.employmentStatus = input.employmentStatus;
+  if (input.incomeRange !== undefined) data.incomeRange = input.incomeRange;
 
   const user = await updateUser(userId, data as any);
   return sanitizeUser(user, encKey);
@@ -102,6 +108,9 @@ function sanitizeUser(user: any, encKey: string) {
     lastName: decrypt(user.lastNameEnc, encKey),
     age: user.age,
     gender: user.gender,
+    occupation: user.occupation,
+    employmentStatus: user.employmentStatus,
+    incomeRange: user.incomeRange,
     isActive: user.isActive,
     lastLoginAt: user.lastLoginAt,
     createdAt: user.createdAt,
