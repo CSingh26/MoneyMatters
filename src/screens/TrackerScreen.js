@@ -17,6 +17,7 @@ import {
   listVariableExpenses, addVariableExpense, updateVariableExpense, deleteVariableExpense,
   listFixedExpenses, listAssets, addAsset, updateAsset, deleteAsset,
   listSavings, addSavings, updateSavings, deleteSavings,
+  listGoals, addGoal, updateGoal, deleteGoal,
 } from '../api/finance';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
@@ -73,7 +74,10 @@ export default function TrackerScreen({ user, navigation }) {
   const [filterCategory, setFilterCategory] = useState('All');
   const [tooltipData, setTooltipData] = useState(null);
   const [financialSummary, setFinancialSummary] = useState(null);
-  const [savingsGoal, setSavingsGoal] = useState(null);
+  const [savingsGoals, setSavingsGoals] = useState([]);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(null);
+  const [goalForm, setGoalForm] = useState({ name: '', target: '', current: '', deadline: '' });
   const [loading, setLoading] = useState(true);
 
   // Historical data — computed from transactions
@@ -132,13 +136,14 @@ export default function TrackerScreen({ user, navigation }) {
   // Load all financial data from backend
   const loadAllData = useCallback(async () => {
     try {
-      const [incomeItems, variableItems, fixedItems, summaryData, assetItems, savingsData] = await Promise.all([
+      const [incomeItems, variableItems, fixedItems, summaryData, assetItems, savingsData, goalsData] = await Promise.all([
         listIncome().catch(() => []),
         listVariableExpenses().catch(() => []),
         listFixedExpenses().catch(() => []),
         getFinanceSummary().catch(() => null),
         listAssets().catch(() => []),
         listSavings().catch(() => []),
+        listGoals().catch(() => []),
       ]);
 
       // Normalize income items → transactions
@@ -203,6 +208,11 @@ export default function TrackerScreen({ user, navigation }) {
         createdAt: s.createdAt,
       })));
 
+      // Load goals from dedicated endpoint
+      setSavingsGoals((goalsData || []).map(g => ({
+        id: g.id, name: g.name, target: parseFloat(g.target || 0), current: parseFloat(g.current || 0), deadline: g.deadline,
+      })));
+
       if (summaryData) {
         setFinancialSummary({
           totalBalance: summaryData.totalSavingsBalance,
@@ -210,10 +220,6 @@ export default function TrackerScreen({ user, navigation }) {
           monthlyExpenses: summaryData.totalMonthlyExpenses,
           savingsRate: summaryData.savingsRate,
         });
-        if (summaryData.goals && summaryData.goals.length > 0) {
-          const goal = summaryData.goals[0];
-          setSavingsGoal({ name: goal.name, target: goal.target, current: goal.current, deadline: goal.deadline });
-        }
       }
     } catch (err) {
       console.warn('Failed to load finance data:', err);
@@ -327,9 +333,61 @@ export default function TrackerScreen({ user, navigation }) {
     ]);
   };
 
-  const goalProgress = savingsGoal
-    ? ((savingsGoal.current / savingsGoal.target) * 100).toFixed(0)
-    : 0;
+  const getGoalProgress = (goal) => goal.target > 0 ? ((goal.current / goal.target) * 100).toFixed(0) : 0;
+
+  // ── Goal CRUD ──
+  const resetGoalForm = () => {
+    setGoalForm({ name: '', target: '', current: '', deadline: '' });
+    setEditingGoal(null);
+  };
+
+  const handleSaveGoal = async () => {
+    if (!goalForm.name || !goalForm.target) return;
+    try {
+      const payload = {
+        name: goalForm.name,
+        target: parseFloat(goalForm.target),
+        current: parseFloat(goalForm.current || '0'),
+        deadline: goalForm.deadline ? new Date(goalForm.deadline).toISOString() : undefined,
+      };
+      if (editingGoal) {
+        await updateGoal(editingGoal.id, payload);
+      } else {
+        await addGoal(payload);
+      }
+      await loadAllData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save goal');
+    }
+    setShowGoalModal(false);
+    resetGoalForm();
+  };
+
+  const handleEditGoal = (goal) => {
+    setEditingGoal(goal);
+    setGoalForm({
+      name: goal.name,
+      target: String(goal.target),
+      current: String(goal.current),
+      deadline: goal.deadline ? goal.deadline.split('T')[0] : '',
+    });
+    setShowGoalModal(true);
+  };
+
+  const handleDeleteGoal = (goal) => {
+    if (!goal?.id) return;
+    Alert.alert('Delete Goal', `Are you sure you want to delete "${goal.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await deleteGoal(goal.id);
+          await loadAllData();
+        } catch (err) {
+          Alert.alert('Error', err.message || 'Failed to delete');
+        }
+      }},
+    ]);
+  };
 
   // ── Asset CRUD ──
   const resetAssetForm = () => {
@@ -849,29 +907,52 @@ export default function TrackerScreen({ user, navigation }) {
           )}
         </View>
 
-        {/* Savings Goal */}
+        {/* Savings Goals */}
         <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Savings Goal</Text>
-            <Target size={20} color={accentColor} />
+            <Text style={[styles.cardTitle, { color: colors.gray800, flex: 1 }]} numberOfLines={1}>Savings Goals</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <TouchableOpacity
+                style={[styles.addFab, { backgroundColor: accentColor }]}
+                onPress={() => { resetGoalForm(); setShowGoalModal(true); }}
+              >
+                <Plus size={16} color="#FFF" />
+                <Text style={styles.addFabText}>Add</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          {savingsGoal ? (
-            <>
-              <Text style={[styles.goalName, { color: colors.gray800 }]}>{savingsGoal.name}</Text>
-              <Text style={[styles.goalMeta, { color: colors.gray500 }]}>Target: ${savingsGoal.target.toLocaleString()} by {savingsGoal.deadline}</Text>
-              <View style={styles.progressHeader}>
-                <Text style={[styles.progressValue, { color: colors.gray800 }]}>${savingsGoal.current.toLocaleString()}</Text>
-                <Text style={[styles.progressTarget, { color: colors.gray500 }]}>${savingsGoal.target.toLocaleString()}</Text>
-              </View>
-              <View style={[styles.progressTrack, { backgroundColor: colors.gray100 }]}>
-                <View style={[styles.progressFill, { width: `${goalProgress}%`, backgroundColor: accentColor }]} />
-              </View>
-              <View style={[styles.badge, { backgroundColor: colors.primary50, alignSelf: 'flex-start' }]}>
-                <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>{goalProgress}% complete</Text>
-              </View>
-            </>
+          {savingsGoals.length > 0 ? (
+            savingsGoals.map((goal) => {
+              const progress = getGoalProgress(goal);
+              return (
+                <View key={goal.id} style={[styles.goalCard, { borderColor: colors.cardBorder }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={[styles.goalName, { color: colors.gray800, flex: 1 }]} numberOfLines={1}>{goal.name}</Text>
+                    <View style={styles.txnActions}>
+                      <TouchableOpacity onPress={() => handleEditGoal(goal)} style={styles.txnActionBtn}>
+                        <Edit3 size={14} color={colors.gray400} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteGoal(goal)} style={styles.txnActionBtn}>
+                        <Trash2 size={14} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text style={[styles.goalMeta, { color: colors.gray500 }]}>Target: ${goal.target.toLocaleString()} by {goal.deadline ? new Date(goal.deadline).toLocaleDateString() : 'N/A'}</Text>
+                  <View style={styles.progressHeader}>
+                    <Text style={[styles.progressValue, { color: colors.gray800 }]}>${goal.current.toLocaleString()}</Text>
+                    <Text style={[styles.progressTarget, { color: colors.gray500 }]}>${goal.target.toLocaleString()}</Text>
+                  </View>
+                  <View style={[styles.progressTrack, { backgroundColor: colors.gray100 }]}>
+                    <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: accentColor }]} />
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: colors.primary50, alignSelf: 'flex-start' }]}>
+                    <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>{progress}% complete</Text>
+                  </View>
+                </View>
+              );
+            })
           ) : (
-            <EmptyState icon={Target} title="No savings goal" message="Set a savings goal to track your progress" />
+            <EmptyState icon={Target} title="No savings goals" message="Tap 'Add' to start tracking your goals" />
           )}
         </View>
 
@@ -1219,6 +1300,62 @@ export default function TrackerScreen({ user, navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* ═══ ADD/EDIT GOAL MODAL ═══ */}
+      <Modal visible={showGoalModal} animationType="slide" transparent onRequestClose={() => setShowGoalModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: colors.cardBg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.gray800 }]}>{editingGoal ? 'Edit Goal' : 'New Savings Goal'}</Text>
+              <TouchableOpacity onPress={() => { setShowGoalModal(false); resetGoalForm(); }} style={[styles.modalCloseBtn, { backgroundColor: colors.gray100 }]}>
+                <X size={18} color={colors.gray500} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 400 }}>
+              <Text style={[styles.inputLabel, { color: colors.gray500 }]}>Goal Name *</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, color: colors.gray800, borderColor: colors.cardBorder }]}
+                placeholder="e.g. Emergency Fund"
+                placeholderTextColor={colors.gray400}
+                value={goalForm.name}
+                onChangeText={(t) => setGoalForm(p => ({ ...p, name: t }))}
+              />
+              <Text style={[styles.inputLabel, { color: colors.gray500 }]}>Target Amount *</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, color: colors.gray800, borderColor: colors.cardBorder }]}
+                placeholder="10000"
+                placeholderTextColor={colors.gray400}
+                keyboardType="numeric"
+                value={goalForm.target}
+                onChangeText={(t) => setGoalForm(p => ({ ...p, target: t }))}
+              />
+              <Text style={[styles.inputLabel, { color: colors.gray500 }]}>Current Amount</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, color: colors.gray800, borderColor: colors.cardBorder }]}
+                placeholder="0"
+                placeholderTextColor={colors.gray400}
+                keyboardType="numeric"
+                value={goalForm.current}
+                onChangeText={(t) => setGoalForm(p => ({ ...p, current: t }))}
+              />
+              <Text style={[styles.inputLabel, { color: colors.gray500 }]}>Deadline (YYYY-MM-DD)</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.gray50, color: colors.gray800, borderColor: colors.cardBorder }]}
+                placeholder="2026-12-31"
+                placeholderTextColor={colors.gray400}
+                value={goalForm.deadline}
+                onChangeText={(t) => setGoalForm(p => ({ ...p, deadline: t }))}
+              />
+              <TouchableOpacity
+                style={[styles.formSaveBtn, { backgroundColor: accentColor, marginTop: Spacing.md }]}
+                onPress={handleSaveGoal}
+              >
+                <Text style={styles.formSaveBtnText}>{editingGoal ? 'Update Goal' : 'Create Goal'}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1292,6 +1429,7 @@ const styles = StyleSheet.create({
   pageBtnDisabled: { opacity: 0.4 },
   pageInfo: { fontSize: FontSizes.sm },
   // Goal
+  goalCard: { borderBottomWidth: 1, paddingBottom: Spacing.lg, marginBottom: Spacing.lg },
   goalName: { fontSize: FontSizes.lg, fontWeight: FontWeights.semibold, marginBottom: 4 },
   goalMeta: { fontSize: FontSizes.sm, marginBottom: Spacing.lg },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
