@@ -11,7 +11,7 @@ import {
   ChevronDown, ChevronUp, Sparkles, ArrowRight, ArrowLeft, Zap, Sun, Moon,
 } from 'lucide-react-native';
 import PolicyModal from '../components/PolicyModal';
-import { policies as mockPolicies, gapAnalysis, assets, getScenarioResponse } from '../data/mockData';
+import EmptyState from '../components/EmptyState';
 import { uploadPolicy, listPolicies, runScenario } from '../api/policy';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
@@ -21,12 +21,16 @@ export default function PolicyScreen({ user, navigation }) {
   const [selectedPolicy, setSelectedPolicy] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [policies, setPolicies] = useState(mockPolicies);
+  const [policies, setPolicies] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [expandedGaps, setExpandedGaps] = useState({});
   const scrollRef = useRef(null);
+
+  // Gap analysis and assets — populated from policy API when available
+  const gapAnalysis = [];
+  const assets = [];
 
   // Load policies from API on mount
   useEffect(() => {
@@ -37,7 +41,7 @@ export default function PolicyScreen({ user, navigation }) {
           setPolicies(apiPolicies);
         }
       } catch {
-        // Keep mock policies if API call fails
+        // API unavailable — policies remain empty
       }
     })();
   }, []);
@@ -74,12 +78,12 @@ export default function PolicyScreen({ user, navigation }) {
 
     try {
       const result = await runScenario(query);
-      // API returns scenario data — use it
       setChatMessages((prev) => [...prev, { role: 'assistant', scenario: result }]);
     } catch {
-      // Fallback to mock
-      const scenario = getScenarioResponse(query);
-      setChatMessages((prev) => [...prev, { role: 'assistant', scenario }]);
+      setChatMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: 'Unable to analyze this scenario right now. Please make sure the AI service is running and try again.',
+      }]);
     } finally {
       setIsTyping(false);
     }
@@ -151,122 +155,138 @@ export default function PolicyScreen({ user, navigation }) {
           {/* Active Policies */}
           <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
             <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Active Policies</Text>
-            <View style={styles.policiesGrid}>
-              {policies.map((policy) => (
-                <View key={policy.id} style={[styles.policyCard, { backgroundColor: isDark ? colors.gray50 : '#FFFFFF', borderColor: colors.cardBorder }]}>
-                  <View style={styles.policyCardTop}>
-                    <View style={[styles.policyIcon, { backgroundColor: colors.primary50 }]}>
-                      <Shield size={18} color={isDark ? colors.accent : '#6C5CE7'} />
+            {policies.length > 0 ? (
+              <View style={styles.policiesGrid}>
+                {policies.map((policy) => (
+                  <View key={policy.id} style={[styles.policyCard, { backgroundColor: isDark ? colors.gray50 : '#FFFFFF', borderColor: colors.cardBorder }]}>
+                    <View style={styles.policyCardTop}>
+                      <View style={[styles.policyIcon, { backgroundColor: colors.primary50 }]}>
+                        <Shield size={18} color={isDark ? colors.accent : '#6C5CE7'} />
+                      </View>
+                      <View style={[styles.scoreBadge, { backgroundColor: policy.scoreColor === 'green' ? colors.successLight : colors.warningLight }]}>
+                        <Text style={[styles.scoreBadgeText, { color: policy.scoreColor === 'green' ? '#059669' : '#D97706' }]}>
+                          {policy.coverageScore}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={[styles.scoreBadge, { backgroundColor: policy.scoreColor === 'green' ? colors.successLight : colors.warningLight }]}>
-                      <Text style={[styles.scoreBadgeText, { color: policy.scoreColor === 'green' ? '#059669' : '#D97706' }]}>
-                        {policy.coverageScore}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.policyName, { color: colors.gray800 }]}>{policy.name}</Text>
-                  <Text style={[styles.policyMeta, { color: colors.gray500 }]}>{policy.provider} · ${policy.premium}/mo</Text>
-                  <TouchableOpacity style={styles.viewSummaryBtn} onPress={() => setSelectedPolicy(policy)}>
-                    <Text style={[styles.viewSummaryText, { color: isDark ? colors.accent : '#6C5CE7' }]}>View Summary</Text>
-                    <ArrowRight size={14} color={isDark ? colors.accent : '#6C5CE7'} />
+                    <Text style={[styles.policyName, { color: colors.gray800 }]}>{policy.name}</Text>
+                    <Text style={[styles.policyMeta, { color: colors.gray500 }]}>{policy.provider} · ${policy.premium}/mo</Text>
+                    <TouchableOpacity style={styles.viewSummaryBtn} onPress={() => setSelectedPolicy(policy)}>
+                      <Text style={[styles.viewSummaryText, { color: isDark ? colors.accent : '#6C5CE7' }]}>View Summary</Text>
+                      <ArrowRight size={14} color={isDark ? colors.accent : '#6C5CE7'} />
                   </TouchableOpacity>
                 </View>
               ))}
-            </View>
+              </View>
+            ) : (
+              <EmptyState icon={Shield} title="No policies yet" message="Upload a policy document to get started with coverage analysis" />
+            )}
           </View>
 
           {/* Gap Analysis - Properly Spaced */}
           <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
             <View style={styles.cardHeader}>
               <Text style={[styles.cardTitle, { color: colors.gray800, marginBottom: 0 }]}>Asset vs. Coverage Gap</Text>
-              <View style={[styles.badgePurple, { backgroundColor: colors.primary50 }]}>
-                <Text style={[styles.badgePurpleText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>Assets: ${totalAssetValue.toLocaleString()}</Text>
-              </View>
+              {assets.length > 0 && (
+                <View style={[styles.badgePurple, { backgroundColor: colors.primary50 }]}>
+                  <Text style={[styles.badgePurpleText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>Assets: ${totalAssetValue.toLocaleString()}</Text>
+                </View>
+              )}
             </View>
 
-            {/* Bar Chart for Assets vs Coverage */}
-            <View style={styles.chartSection}>
-              <BarChart
-                data={assetCoverageData}
-                barWidth={40}
-                spacing={24}
-                roundedTop
-                roundedBottom={false}
-                xAxisThickness={1}
-                yAxisThickness={0}
-                xAxisColor={colors.gray200}
-                yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 11, marginTop: 4 }}
-                noOfSections={4}
-                maxValue={600}
-                formatYLabel={(val) => `$${val}k`}
-                height={160}
-                isAnimated
-                animationDuration={600}
-              />
-              <View style={styles.chartLegend}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: isDark ? '#7B5EA7' : '#FF4081' }]} />
-                  <Text style={[styles.legendText, { color: colors.gray500 }]}>Total Assets</Text>
+            {assets.length > 0 ? (
+              <>
+                {/* Bar Chart for Assets vs Coverage */}
+                <View style={styles.chartSection}>
+                  <BarChart
+                    data={assetCoverageData}
+                    barWidth={40}
+                    spacing={24}
+                    roundedTop
+                    roundedBottom={false}
+                    xAxisThickness={1}
+                    yAxisThickness={0}
+                    xAxisColor={colors.gray200}
+                    yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
+                    xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 11, marginTop: 4 }}
+                    noOfSections={4}
+                    maxValue={600}
+                    formatYLabel={(val) => `$${val}k`}
+                    height={160}
+                    isAnimated
+                    animationDuration={600}
+                  />
+                  <View style={styles.chartLegend}>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: isDark ? '#7B5EA7' : '#FF4081' }]} />
+                      <Text style={[styles.legendText, { color: colors.gray500 }]}>Total Assets</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: isDark ? '#E040FB' : '#AB47BC' }]} />
+                      <Text style={[styles.legendText, { color: colors.gray500 }]}>Renter</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: isDark ? '#3D5A80' : '#FFD600' }]} />
+                      <Text style={[styles.legendText, { color: colors.gray500 }]}>Auto</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: isDark ? '#00B894' : '#FF6D00' }]} />
+                      <Text style={[styles.legendText, { color: colors.gray500 }]}>Health</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: isDark ? '#E040FB' : '#AB47BC' }]} />
-                  <Text style={[styles.legendText, { color: colors.gray500 }]}>Renter</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: isDark ? '#3D5A80' : '#FFD600' }]} />
-                  <Text style={[styles.legendText, { color: colors.gray500 }]}>Auto</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: isDark ? '#00B894' : '#FF6D00' }]} />
-                  <Text style={[styles.legendText, { color: colors.gray500 }]}>Health</Text>
-                </View>
-              </View>
-            </View>
+              </>
+            ) : (
+              <EmptyState icon={AlertTriangle} title="No asset data" message="Add your assets to see coverage gap analysis" />
+            )}
 
             {/* Gap Items */}
-            <Text style={[styles.subSectionTitle, { color: colors.gray700 }]}>Coverage Gaps</Text>
-            {gapAnalysis.map((gap, idx) => (
-              <View
-                key={idx}
-                style={[
-                  styles.gapItem,
-                  {
-                    borderColor: colors.cardBorder,
-                    borderLeftColor: gap.severity === 'high' ? colors.danger : gap.severity === 'medium' ? colors.warning : colors.success,
-                    backgroundColor: isDark ? colors.gray50 : '#FFFFFF',
-                  },
-                ]}
-              >
-                <TouchableOpacity style={styles.gapHeader} onPress={() => toggleGap(idx)} activeOpacity={0.7}>
-                  <View style={styles.gapLeft}>
-                    {gap.type === 'warning' ? (
-                      <AlertTriangle size={18} color={colors.warning} />
-                    ) : (
-                      <Info size={18} color={colors.info} />
+            {gapAnalysis.length > 0 && (
+              <>
+                <Text style={[styles.subSectionTitle, { color: colors.gray700 }]}>Coverage Gaps</Text>
+                {gapAnalysis.map((gap, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.gapItem,
+                      {
+                        borderColor: colors.cardBorder,
+                        borderLeftColor: gap.severity === 'high' ? colors.danger : gap.severity === 'medium' ? colors.warning : colors.success,
+                        backgroundColor: isDark ? colors.gray50 : '#FFFFFF',
+                      },
+                    ]}
+                  >
+                    <TouchableOpacity style={styles.gapHeader} onPress={() => toggleGap(idx)} activeOpacity={0.7}>
+                      <View style={styles.gapLeft}>
+                        {gap.type === 'warning' ? (
+                          <AlertTriangle size={18} color={colors.warning} />
+                        ) : (
+                          <Info size={18} color={colors.info} />
+                        )}
+                        <Text style={[styles.gapTitle, { color: colors.gray800 }]}>{gap.title}</Text>
+                      </View>
+                      <View style={styles.gapRight}>
+                        <View style={[styles.severityBadge, {
+                          backgroundColor: gap.severity === 'high' ? colors.dangerLight : gap.severity === 'medium' ? colors.warningLight : colors.successLight,
+                        }]}>
+                          <Text style={[styles.severityText, {
+                            color: gap.severity === 'high' ? '#DC2626' : gap.severity === 'medium' ? '#D97706' : '#059669',
+                          }]}>
+                            {gap.severity === 'high' ? 'High Risk' : gap.severity === 'medium' ? 'Medium' : 'Low Risk'}
+                          </Text>
+                        </View>
+                        {expandedGaps[idx] ? <ChevronUp size={16} color={colors.gray400} /> : <ChevronDown size={16} color={colors.gray400} />}
+                      </View>
+                    </TouchableOpacity>
+                    {expandedGaps[idx] && (
+                      <View style={styles.gapBody}>
+                        <Text style={[styles.gapMessage, { color: colors.gray600 }]}>{gap.message}</Text>
+                      </View>
                     )}
-                    <Text style={[styles.gapTitle, { color: colors.gray800 }]}>{gap.title}</Text>
                   </View>
-                  <View style={styles.gapRight}>
-                    <View style={[styles.severityBadge, {
-                      backgroundColor: gap.severity === 'high' ? colors.dangerLight : gap.severity === 'medium' ? colors.warningLight : colors.successLight,
-                    }]}>
-                      <Text style={[styles.severityText, {
-                        color: gap.severity === 'high' ? '#DC2626' : gap.severity === 'medium' ? '#D97706' : '#059669',
-                      }]}>
-                        {gap.severity === 'high' ? 'High Risk' : gap.severity === 'medium' ? 'Medium' : 'Low Risk'}
-                      </Text>
-                    </View>
-                    {expandedGaps[idx] ? <ChevronUp size={16} color={colors.gray400} /> : <ChevronDown size={16} color={colors.gray400} />}
-                  </View>
-                </TouchableOpacity>
-                {expandedGaps[idx] && (
-                  <View style={styles.gapBody}>
-                    <Text style={[styles.gapMessage, { color: colors.gray600 }]}>{gap.message}</Text>
-                  </View>
-                )}
-              </View>
-            ))}
+                ))}
+              </>
+            )}
           </View>
 
           {/* Scenario Simulator */}
@@ -312,7 +332,7 @@ export default function PolicyScreen({ user, navigation }) {
                       <View style={[styles.userBubble, { backgroundColor: isDark ? colors.primary300 : '#6C5CE7' }]}>
                         <Text style={styles.userBubbleText}>{msg.content}</Text>
                       </View>
-                    ) : (
+                    ) : msg.scenario ? (
                       <View style={[styles.scenarioCard, { borderColor: colors.cardBorder, backgroundColor: colors.gray50 }]}>
                         <View style={[styles.pathA, { backgroundColor: colors.cardBg }]}>
                           <Text style={[styles.pathTitle, { color: colors.gray800 }]}>{msg.scenario.pathA.title}</Text>
@@ -342,6 +362,10 @@ export default function PolicyScreen({ user, navigation }) {
                             <Text style={[styles.recText, { color: colors.gray700 }]}>{msg.scenario.recommendation}</Text>
                           </View>
                         ) : null}
+                      </View>
+                    ) : (
+                      <View style={[styles.userBubble, { backgroundColor: colors.gray100, alignSelf: 'flex-start' }]}>
+                        <Text style={[styles.userBubbleText, { color: colors.gray700 }]}>{msg.content}</Text>
                       </View>
                     )}
                   </View>

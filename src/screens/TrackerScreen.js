@@ -11,10 +11,7 @@ import {
   ShoppingBag, Coffee, CreditCard, DollarSign, Briefcase, Heart,
 } from 'lucide-react-native';
 import StatCard from '../components/StatCard';
-import {
-  financialSummary as mockSummary, monthlyData, yearlyData, spendingByCategory,
-  transactions as mockTransactions, assets, savingsGoal as mockSavingsGoal,
-} from '../data/mockData';
+import EmptyState from '../components/EmptyState';
 import { getFinanceSummary } from '../api/finance';
 import { FontSizes, FontWeights, Spacing, Radii, Shadows } from '../theme';
 import { useTheme } from '../ThemeContext';
@@ -31,7 +28,7 @@ const ITEMS_PER_PAGE = 8;
 
 export default function TrackerScreen({ user, navigation }) {
   const { isDark, toggleTheme, colors } = useTheme();
-  const [allTransactions, setAllTransactions] = useState(mockTransactions);
+  const [allTransactions, setAllTransactions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [trendView, setTrendView] = useState('monthly');
   const [showFormModal, setShowFormModal] = useState(false);
@@ -39,8 +36,14 @@ export default function TrackerScreen({ user, navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [tooltipData, setTooltipData] = useState(null);
-  const [financialSummary, setFinancialSummary] = useState(mockSummary);
-  const [savingsGoal, setSavingsGoal] = useState(mockSavingsGoal);
+  const [financialSummary, setFinancialSummary] = useState(null);
+  const [savingsGoal, setSavingsGoal] = useState(null);
+
+  // Historical data — populated when backend trend API is available
+  const monthlyData = [];
+  const yearlyData = [];
+  const spendingByCategory = [];
+  const assets = [];
   const [formData, setFormData] = useState({
     type: 'Expense', category: 'Food', amount: '', date: new Date().toISOString().split('T')[0],
     description: '', note: '',
@@ -141,7 +144,9 @@ export default function TrackerScreen({ user, navigation }) {
     ]);
   };
 
-  const goalProgress = ((savingsGoal.current / savingsGoal.target) * 100).toFixed(0);
+  const goalProgress = savingsGoal
+    ? ((savingsGoal.current / savingsGoal.target) * 100).toFixed(0)
+    : 0;
 
   // Trend chart data
   const trendChartData = useMemo(() => {
@@ -211,20 +216,22 @@ export default function TrackerScreen({ user, navigation }) {
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Income & Expense Trend</Text>
           </View>
-          {/* Toggle */}
-          <View style={[styles.segmentControl, { backgroundColor: colors.gray50 }]}>
-            {['monthly', 'yearly'].map(view => (
-              <TouchableOpacity
-                key={view}
-                style={[styles.segmentBtn, trendView === view && { backgroundColor: colors.cardBg, ...Shadows.sm }]}
-                onPress={() => setTrendView(view)}
-              >
-                <Text style={[styles.segmentText, { color: trendView === view ? colors.gray800 : colors.gray400 }]}>
-                  {view === 'monthly' ? 'Monthly (12 mo)' : 'Yearly (5 yr)'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {trendChartData.income.length > 0 ? (
+            <>
+              {/* Toggle */}
+              <View style={[styles.segmentControl, { backgroundColor: colors.gray50 }]}>
+                {['monthly', 'yearly'].map(view => (
+                  <TouchableOpacity
+                    key={view}
+                    style={[styles.segmentBtn, trendView === view && { backgroundColor: colors.cardBg, ...Shadows.sm }]}
+                    onPress={() => setTrendView(view)}
+                  >
+                    <Text style={[styles.segmentText, { color: trendView === view ? colors.gray800 : colors.gray400 }]}>
+                      {view === 'monthly' ? 'Monthly (12 mo)' : 'Yearly (5 yr)'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
           {/* Line Chart */}
           <View style={styles.chartContainer}>
             <LineChart
@@ -289,6 +296,10 @@ export default function TrackerScreen({ user, navigation }) {
               <Text style={[styles.legendText, { color: colors.gray500 }]}>Expenses</Text>
             </View>
           </View>
+            </>
+          ) : (
+            <EmptyState icon={TrendingUp} title="No trend data yet" message="Add income and expenses to see your financial trends" />
+          )}
         </View>
 
         {/* ═══ SUMMARY STAT CARDS ═══ */}
@@ -309,7 +320,7 @@ export default function TrackerScreen({ user, navigation }) {
             <PiggyBank size={20} color={colors.success} />
             <Text style={[styles.statMiniValue, { color: colors.success }]}>${dynamicSummary.net.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</Text>
             <Text style={[styles.statMiniLabel, { color: colors.gray500 }]}>Net Savings</Text>
-            <Text style={[styles.deltaText, { color: colors.success }]}>↑ {financialSummary.savingsRate}%</Text>
+            <Text style={[styles.deltaText, { color: colors.success }]}>↑ {financialSummary?.savingsRate ?? 0}%</Text>
           </View>
         </View>
 
@@ -323,36 +334,42 @@ export default function TrackerScreen({ user, navigation }) {
               </Text>
             </View>
           </View>
-          <View style={styles.chartContainer}>
-            <BarChart
-              data={barData}
-              barWidth={14}
-              spacing={14}
-              initialSpacing={8}
-              roundedTop
-              roundedBottom={false}
-              xAxisThickness={0}
-              yAxisThickness={0}
-              yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
-              noOfSections={4}
-              maxValue={trendView === 'monthly' ? 6000 : 70000}
-              height={200}
-              isAnimated
-              animationDuration={600}
-              labelsDistanceFromXaxis={0}
-            />
-          </View>
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: isDark ? '#7B5EA7' : '#FF4081' }]} />
-              <Text style={[styles.legendText, { color: colors.gray500 }]}>Income</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: isDark ? '#E040FB' : '#AB47BC' }]} />
-              <Text style={[styles.legendText, { color: colors.gray500 }]}>Expenses</Text>
-            </View>
-          </View>
+          {barData.length > 0 ? (
+            <>
+              <View style={styles.chartContainer}>
+                <BarChart
+                  data={barData}
+                  barWidth={14}
+                  spacing={14}
+                  initialSpacing={8}
+                  roundedTop
+                  roundedBottom={false}
+                  xAxisThickness={0}
+                  yAxisThickness={0}
+                  yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
+                  xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
+                  noOfSections={4}
+                  maxValue={trendView === 'monthly' ? 6000 : 70000}
+                  height={200}
+                  isAnimated
+                  animationDuration={600}
+                  labelsDistanceFromXaxis={0}
+                />
+              </View>
+              <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: isDark ? '#7B5EA7' : '#FF4081' }]} />
+                  <Text style={[styles.legendText, { color: colors.gray500 }]}>Income</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: isDark ? '#E040FB' : '#AB47BC' }]} />
+                  <Text style={[styles.legendText, { color: colors.gray500 }]}>Expenses</Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <EmptyState icon={TrendingUp} title="No comparison data" message="Add financial data to compare income vs expenses" />
+          )}
         </View>
 
         {/* ═══ DONUT CHART ═══ */}
@@ -363,31 +380,37 @@ export default function TrackerScreen({ user, navigation }) {
               <Text style={[styles.badgeText, { color: isDark ? colors.blue600 : '#2563EB' }]}>By Category</Text>
             </View>
           </View>
-          <View style={styles.donutContainer}>
-            <PieChart
-              data={pieData}
-              donut
-              radius={90}
-              innerRadius={55}
-              innerCircleColor={colors.cardBg}
-              centerLabelComponent={() => (
-                <View style={styles.donutCenter}>
-                  <Text style={[styles.donutTotal, { color: colors.gray800 }]}>$3,250</Text>
-                  <Text style={[styles.donutLabel, { color: colors.gray500 }]}>Total</Text>
-                </View>
-              )}
-              isAnimated
-            />
-          </View>
-          <View style={styles.categoryLegend}>
-            {spendingByCategory.map((c, i) => (
-              <View key={i} style={styles.categoryItem}>
-                <View style={[styles.legendDot, { backgroundColor: c.color }]} />
-                <Text style={[styles.categoryName, { color: colors.gray600 }]}>{c.name}</Text>
-                <Text style={[styles.categoryValue, { color: colors.gray800 }]}>${c.value}</Text>
+          {pieData.length > 0 ? (
+            <>
+              <View style={styles.donutContainer}>
+                <PieChart
+                  data={pieData}
+                  donut
+                  radius={90}
+                  innerRadius={55}
+                  innerCircleColor={colors.cardBg}
+                  centerLabelComponent={() => (
+                    <View style={styles.donutCenter}>
+                      <Text style={[styles.donutTotal, { color: colors.gray800 }]}>$3,250</Text>
+                      <Text style={[styles.donutLabel, { color: colors.gray500 }]}>Total</Text>
+                    </View>
+                  )}
+                  isAnimated
+                />
               </View>
-            ))}
-          </View>
+              <View style={styles.categoryLegend}>
+                {spendingByCategory.map((c, i) => (
+                  <View key={i} style={styles.categoryItem}>
+                    <View style={[styles.legendDot, { backgroundColor: c.color }]} />
+                    <Text style={[styles.categoryName, { color: colors.gray600 }]}>{c.name}</Text>
+                    <Text style={[styles.categoryValue, { color: colors.gray800 }]}>${c.value}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <EmptyState icon={PiggyBank} title="No spending data" message="Track your expenses to see a category breakdown" />
+          )}
         </View>
 
         {/* ═══ TRANSACTIONS (FULL CRUD) ═══ */}
@@ -495,18 +518,24 @@ export default function TrackerScreen({ user, navigation }) {
             <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Savings Goal</Text>
             <Target size={20} color={accentColor} />
           </View>
-          <Text style={[styles.goalName, { color: colors.gray800 }]}>{savingsGoal.name}</Text>
-          <Text style={[styles.goalMeta, { color: colors.gray500 }]}>Target: ${savingsGoal.target.toLocaleString()} by {savingsGoal.deadline}</Text>
-          <View style={styles.progressHeader}>
-            <Text style={[styles.progressValue, { color: colors.gray800 }]}>${savingsGoal.current.toLocaleString()}</Text>
-            <Text style={[styles.progressTarget, { color: colors.gray500 }]}>${savingsGoal.target.toLocaleString()}</Text>
-          </View>
-          <View style={[styles.progressTrack, { backgroundColor: colors.gray100 }]}>
-            <View style={[styles.progressFill, { width: `${goalProgress}%`, backgroundColor: accentColor }]} />
-          </View>
-          <View style={[styles.badge, { backgroundColor: colors.primary50, alignSelf: 'flex-start' }]}>
-            <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>{goalProgress}% complete</Text>
-          </View>
+          {savingsGoal ? (
+            <>
+              <Text style={[styles.goalName, { color: colors.gray800 }]}>{savingsGoal.name}</Text>
+              <Text style={[styles.goalMeta, { color: colors.gray500 }]}>Target: ${savingsGoal.target.toLocaleString()} by {savingsGoal.deadline}</Text>
+              <View style={styles.progressHeader}>
+                <Text style={[styles.progressValue, { color: colors.gray800 }]}>${savingsGoal.current.toLocaleString()}</Text>
+                <Text style={[styles.progressTarget, { color: colors.gray500 }]}>${savingsGoal.target.toLocaleString()}</Text>
+              </View>
+              <View style={[styles.progressTrack, { backgroundColor: colors.gray100 }]}>
+                <View style={[styles.progressFill, { width: `${goalProgress}%`, backgroundColor: accentColor }]} />
+              </View>
+              <View style={[styles.badge, { backgroundColor: colors.primary50, alignSelf: 'flex-start' }]}>
+                <Text style={[styles.badgeText, { color: isDark ? colors.primary600 : '#6C5CE7' }]}>{goalProgress}% complete</Text>
+              </View>
+            </>
+          ) : (
+            <EmptyState icon={Target} title="No savings goal" message="Set a savings goal to track your progress" />
+          )}
         </View>
 
         {/* Savings Trend Chart */}
@@ -519,65 +548,75 @@ export default function TrackerScreen({ user, navigation }) {
               </Text>
             </View>
           </View>
-          <View style={styles.chartContainer}>
-            <BarChart
-              data={(trendView === 'monthly' ? monthlyData : yearlyData).map(d => {
-                const saved = (d.income || 0) - (d.expenses || 0);
-                return {
-                  value: saved / 1000,
-                  label: d.month || d.year,
-                  labelWidth: 28,
-                  frontColor: saved >= 0 ? (isDark ? '#00B894' : '#10B981') : (isDark ? '#E74C3C' : '#EF4444'),
-                  topLabelComponent: () => (
-                    <Text style={{ fontSize: 8, color: colors.gray400, marginBottom: 1 }}>
-                      {(saved / 1000).toFixed(1)}k
-                    </Text>
-                  ),
-                };
-              })}
-              barWidth={trendView === 'monthly' ? 16 : 32}
-              spacing={trendView === 'monthly' ? 10 : 20}
-              initialSpacing={8}
-              roundedTop
-              roundedBottom={false}
-              xAxisThickness={0}
-              yAxisThickness={0}
-              yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
-              xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
-              noOfSections={4}
-              formatYLabel={(val) => `$${val}k`}
-              height={150}
-              isAnimated
-              animationDuration={600}
-            />
-          </View>
+          {(trendView === 'monthly' ? monthlyData : yearlyData).length > 0 ? (
+            <View style={styles.chartContainer}>
+              <BarChart
+                data={(trendView === 'monthly' ? monthlyData : yearlyData).map(d => {
+                  const saved = (d.income || 0) - (d.expenses || 0);
+                  return {
+                    value: saved / 1000,
+                    label: d.month || d.year,
+                    labelWidth: 28,
+                    frontColor: saved >= 0 ? (isDark ? '#00B894' : '#10B981') : (isDark ? '#E74C3C' : '#EF4444'),
+                    topLabelComponent: () => (
+                      <Text style={{ fontSize: 8, color: colors.gray400, marginBottom: 1 }}>
+                        {(saved / 1000).toFixed(1)}k
+                      </Text>
+                    ),
+                  };
+                })}
+                barWidth={trendView === 'monthly' ? 16 : 32}
+                spacing={trendView === 'monthly' ? 10 : 20}
+                initialSpacing={8}
+                roundedTop
+                roundedBottom={false}
+                xAxisThickness={0}
+                yAxisThickness={0}
+                yAxisTextStyle={{ color: colors.gray500, fontSize: 10 }}
+                xAxisLabelTextStyle={{ color: colors.gray500, fontSize: 9 }}
+                noOfSections={4}
+                formatYLabel={(val) => `$${val}k`}
+                height={150}
+                isAnimated
+                animationDuration={600}
+              />
+            </View>
+          ) : (
+            <EmptyState icon={PiggyBank} title="No savings trend" message="Add financial data to track your savings over time" />
+          )}
         </View>
 
         {/* Assets */}
         <View style={[styles.cardBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: colors.gray800 }]}>Your Assets</Text>
-            <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
-              <Text style={[styles.badgeText, { color: '#059669' }]}>
-                ${assets.reduce((s, a) => s + a.value, 0).toLocaleString()} total
-              </Text>
-            </View>
-          </View>
-          {assets.map(asset => {
-            const IconComp = assetIcons[asset.icon] || Wallet;
-            return (
-              <View key={asset.id} style={styles.assetItem}>
-                <View style={[styles.assetIcon, { backgroundColor: colors.primary50 }]}>
-                  <IconComp size={18} color={accentColor} />
-                </View>
-                <View style={styles.assetInfo}>
-                  <Text style={[styles.assetName, { color: colors.gray800 }]}>{asset.name}</Text>
-                  <Text style={[styles.assetCategory, { color: colors.gray500 }]}>{asset.category}</Text>
-                </View>
-                <Text style={[styles.assetValue, { color: colors.gray800 }]}>${asset.value.toLocaleString()}</Text>
+            {assets.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
+                <Text style={[styles.badgeText, { color: '#059669' }]}>
+                  ${assets.reduce((s, a) => s + a.value, 0).toLocaleString()} total
+                </Text>
               </View>
-            );
-          })}
+            )}
+          </View>
+          {assets.length > 0 ? (
+            assets.map(asset => {
+              const IconComp = assetIcons[asset.icon] || Wallet;
+              return (
+                <View key={asset.id} style={styles.assetItem}>
+                  <View style={[styles.assetIcon, { backgroundColor: colors.primary50 }]}>
+                    <IconComp size={18} color={accentColor} />
+                  </View>
+                  <View style={styles.assetInfo}>
+                    <Text style={[styles.assetName, { color: colors.gray800 }]}>{asset.name}</Text>
+                    <Text style={[styles.assetCategory, { color: colors.gray500 }]}>{asset.category}</Text>
+                  </View>
+                  <Text style={[styles.assetValue, { color: colors.gray800 }]}>${asset.value.toLocaleString()}</Text>
+                </View>
+              );
+            })
+          ) : (
+            <EmptyState icon={Wallet} title="No assets tracked" message="Your tracked assets will appear here" />
+          )}
         </View>
 
         <View style={{ height: 40 }} />
