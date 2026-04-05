@@ -20,6 +20,7 @@ export default function AuthScreen() {
     lastName: '',
     email: '',
     password: '',
+    confirmPassword: '',
     age: '',
     gender: '',
   });
@@ -39,14 +40,20 @@ export default function AuthScreen() {
     setSubmitting(true);
     try {
       if (isSignUp) {
-        if (!formData.firstName || !formData.lastName || !formData.age || !formData.gender) {
+        if (!formData.firstName || !formData.lastName || !formData.age || !formData.gender || !formData.confirmPassword) {
           Alert.alert('Error', 'All fields are required for sign up');
+          setSubmitting(false);
+          return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          Alert.alert('Error', 'Passwords do not match');
           setSubmitting(false);
           return;
         }
         await register({
           email: formData.email,
           password: formData.password,
+          confirmPassword: formData.confirmPassword,
           firstName: formData.firstName,
           lastName: formData.lastName,
           age: parseInt(formData.age, 10),
@@ -232,6 +239,23 @@ export default function AuthScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {isSignUp && (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.gray600 }]}>Confirm Password</Text>
+                <View style={[styles.inputWithIcon, { backgroundColor: colors.gray50, borderColor: colors.gray200 }]}>
+                  <Lock size={18} color={colors.gray400} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, styles.inputPadded, { flex: 1, color: colors.gray800 }]}
+                    placeholder="Re-enter your password"
+                    placeholderTextColor={colors.gray400}
+                    value={formData.confirmPassword}
+                    onChangeText={(t) => setFormData({ ...formData, confirmPassword: t })}
+                    secureTextEntry={!showPassword}
+                  />
+                </View>
+              </View>
+            )}
 
             <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary500 }]} onPress={handleSubmit} activeOpacity={0.8} disabled={submitting}>
               {submitting ? (

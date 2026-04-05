@@ -11,7 +11,7 @@ import * as authService from '../services/auth.service';
 
 export async function registerHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    const body = registerSchema.parse(req.body);
+    const { confirmPassword, ...body } = registerSchema.parse(req.body);
     const result = await authService.register(body);
     sendSuccess(res, result, 201, 'Registration successful');
   } catch (err: any) {

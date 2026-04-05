@@ -14,8 +14,9 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   // Zod validation errors → 400
-  if (err instanceof ZodError) {
-    const message = err.errors.map((e) => e.message).join('; ');
+  if (err instanceof ZodError || err.name === 'ZodError') {
+    const zodErr = err as ZodError;
+    const message = zodErr.errors.map((e) => e.message).join('; ');
     sendError(res, message, 400);
     return;
   }
