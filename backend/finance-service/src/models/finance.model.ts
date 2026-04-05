@@ -17,6 +17,7 @@ export async function findOrCreateProfile(userId: string) {
       variableItems: true,
       savingsItems: true,
       goals: true,
+      assets: true,
     },
   });
 }
@@ -30,6 +31,7 @@ export async function findProfileByUserId(userId: string) {
       variableItems: true,
       savingsItems: true,
       goals: true,
+      assets: true,
     },
   });
 }
@@ -138,6 +140,27 @@ export async function deleteGoal(id: string) {
 
 export async function findGoalById(id: string) {
   return prisma.financeGoal.findUnique({ where: { id } });
+}
+
+/* ── Assets ── */
+
+export async function createAsset(profileId: string, data: {
+  name: string; type: any; estimatedValueEnc: string; estimatedValue: number;
+  purchaseDate?: Date | null; description?: string;
+}) {
+  return prisma.financeAsset.create({ data: { profileId, ...data } });
+}
+
+export async function updateAsset(id: string, data: Record<string, any>) {
+  return prisma.financeAsset.update({ where: { id }, data });
+}
+
+export async function deleteAsset(id: string) {
+  return prisma.financeAsset.delete({ where: { id } });
+}
+
+export async function findAssetById(id: string) {
+  return prisma.financeAsset.findUnique({ where: { id } });
 }
 
 export { prisma };

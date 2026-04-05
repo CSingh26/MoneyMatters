@@ -4,10 +4,11 @@ import * as income from '../controllers/income.controller';
 import * as expenditure from '../controllers/expenditure.controller';
 import * as savings from '../controllers/savings.controller';
 import * as goals from '../controllers/goals.controller';
+import * as assets from '../controllers/assets.controller';
 import { summaryHandler } from '../controllers/summary.controller';
 import {
   listIncomeHandler, listFixedHandler, listVariableHandler,
-  listSavingsHandler, listGoalsHandler,
+  listSavingsHandler, listGoalsHandler, listAssetsHandler,
 } from '../controllers/list.controller';
 
 const router = Router();
@@ -44,6 +45,12 @@ router.get('/goals', listGoalsHandler);
 router.post('/goals', goals.addHandler);
 router.patch('/goals/:id', goals.editHandler);
 router.delete('/goals/:id', goals.removeHandler);
+
+/* ── Assets ── */
+router.get('/assets', listAssetsHandler);
+router.post('/assets', assets.addHandler);
+router.patch('/assets/:id', assets.editHandler);
+router.delete('/assets/:id', assets.removeHandler);
 
 /* ── Summary ── */
 router.get('/summary', summaryHandler);

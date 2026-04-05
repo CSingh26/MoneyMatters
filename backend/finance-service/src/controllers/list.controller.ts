@@ -102,3 +102,23 @@ export async function listGoalsHandler(req: AuthenticatedRequest, res: Response,
     next(err);
   }
 }
+
+export async function listAssetsHandler(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const profile = await findProfileByUserId(req.user!.userId);
+    if (!profile) return sendSuccess(res, []);
+    const items = profile.assets.map((a) => ({
+      id: a.id,
+      name: a.name,
+      type: a.type,
+      estimatedValue: Number(decrypt(a.estimatedValueEnc, encKey())),
+      purchaseDate: a.purchaseDate,
+      description: a.description,
+      createdAt: a.createdAt,
+    }));
+    sendSuccess(res, items);
+  } catch (err: any) {
+    if (err.status) return sendError(res, err.message, err.status);
+    next(err);
+  }
+}

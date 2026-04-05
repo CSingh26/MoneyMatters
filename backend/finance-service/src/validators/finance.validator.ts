@@ -62,3 +62,17 @@ export const updateGoalSchema = z.object({
   deadline: z.string().datetime().optional().nullable(),
   status: z.enum(['active', 'completed', 'paused']).optional(),
 });
+
+/* ── Assets ── */
+export const createAssetSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.enum([
+    'real_estate', 'vehicle', 'electronics', 'jewelry',
+    'collectibles', 'furniture', 'other',
+  ]),
+  estimatedValue: z.number().positive(),
+  purchaseDate: z.string().datetime().optional(),
+  description: z.string().max(200).optional(),
+});
+
+export const updateAssetSchema = createAssetSchema.partial();

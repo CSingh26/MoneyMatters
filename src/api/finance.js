@@ -132,6 +132,32 @@ export async function deleteGoal(id) {
   await apiFetch(BASE, `/api/finance/goals/${id}`, { method: 'DELETE' });
 }
 
+// ─── Assets ───
+export async function listAssets() {
+  const json = await apiFetch(BASE, '/api/finance/assets');
+  return json.data;
+}
+
+export async function addAsset(data) {
+  const json = await apiFetch(BASE, '/api/finance/assets', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return json.data;
+}
+
+export async function updateAsset(id, data) {
+  const json = await apiFetch(BASE, `/api/finance/assets/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  return json.data;
+}
+
+export async function deleteAsset(id) {
+  await apiFetch(BASE, `/api/finance/assets/${id}`, { method: 'DELETE' });
+}
+
 // ─── Summary ───
 export async function getFinanceSummary() {
   const json = await apiFetch(BASE, '/api/finance/summary');

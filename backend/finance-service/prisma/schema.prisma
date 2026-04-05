@@ -18,6 +18,7 @@ model FinanceProfile {
   variableItems     FinanceVariableExpenditure[]
   savingsItems      FinanceSavingsItem[]
   goals             FinanceGoal[]
+  assets            FinanceAsset[]
 
   @@map("finance_profiles")
   @@index([userId])
@@ -153,4 +154,31 @@ enum GoalStatus {
   active
   completed
   paused
+}
+
+model FinanceAsset {
+  id                String        @id @default(uuid())
+  profileId         String        @map("profile_id")
+  name              String
+  type              AssetType
+  estimatedValueEnc String        @map("estimated_value_enc")
+  estimatedValue    Decimal       @map("estimated_value")
+  purchaseDate      DateTime?     @map("purchase_date")
+  description       String?
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  profile           FinanceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("finance_assets")
+  @@index([profileId])
+}
+
+enum AssetType {
+  real_estate
+  vehicle
+  electronics
+  jewelry
+  collectibles
+  furniture
+  other
 }
