@@ -1,10 +1,9 @@
-name: CI - Lint & Validate
+name: CI - Lint & Validate (DISABLED)
 
+# Disabled while AWS infrastructure is torn down.
+# To re-enable, restore the pull_request trigger below.
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'backend/**'
+  workflow_dispatch: # manual-only, effectively disabled
 
 jobs:
   validate:

@@ -1,12 +1,9 @@
-name: Deploy to AWS
+name: Deploy to AWS (DISABLED - Infrastructure torn down)
 
+# AWS infrastructure has been deleted. This workflow is disabled.
+# To re-enable, restore the push trigger below.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/**'
-      - 'docker-compose.prod.yml'
-      - '.github/workflows/deploy.yml'
+  workflow_dispatch: # manual-only, effectively disabled
 
 env:
   AWS_REGION: us-east-1
