@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "description": "Shared types, middleware, and utilities for PolicyLens AI microservices",
+  "type": "module",
   "dependencies": {
     "express": "^4.21.0",
     "express-rate-limit": "^7.4.1",
